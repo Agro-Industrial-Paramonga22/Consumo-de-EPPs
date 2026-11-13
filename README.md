@@ -5,8 +5,9 @@ Aplicación web (HTML + CSS + JS, sin frameworks ni build) que responde dos preg
 1. **¿Qué EPPs usa cada puesto de trabajo y cuánto cuesta cubrirlo?**
 2. **¿Cuánto consumió realmente cada puesto, cada persona y cada mes?**
 
-Datos: `Consumo` (SAP), maestros de personal (`MAE ACT SEG IND` y `MAESTRO SERVICIOS`),
-maestro de precios (`Costos actualizados 2026`) y `STOCK`.
+Datos: **Supabase** (proyecto `yyzwlqtbhcbyftwwtexi`), cargados desde los Excel de
+origen: `Consumo` (SAP), maestros de personal (`MAE ACT SEG IND` y
+`MAESTRO SERVICIOS`), maestro de precios (`Costos actualizados 2026`) y `STOCK`.
 
 ---
 
@@ -32,12 +33,13 @@ python -m http.server 8877
 ├─ css/estilos.css
 ├─ js/
 │  ├─ config.js            URL + clave publishable de Supabase
-│  ├─ data.js              carga de datos + utilidades (único punto a cambiar)
+│  ├─ data.js              consultas a las vistas (único punto de acceso a datos)
 │  ├─ matriz.js
 │  └─ consumo.js
-├─ db/schema.sql           Esquema PostgreSQL para Supabase (idempotente)
-├─ scripts/exportar_datos.py   ETL: Excel -> JSON
-└─ datos/                  JSON generados (EXCLUIDOS de git: contienen DNI)
+├─ db/schema.sql           Tablas, vistas y RLS (idempotente)
+└─ scripts/
+   ├─ sb_cliente.py        cliente REST / SQL
+   └─ importar_supabase.py ETL: Excel → Supabase (todo, incluido lo sin DNI)
 ```
 
 ---
@@ -94,32 +96,44 @@ puesto con su consumo mes a mes y el total; al hacer clic en una persona se
 despliega el detalle de EPPs consumidos en los meses visibles.
 
 Solo entran las líneas con DNI de una persona que exista en el maestro.
-Las líneas sin DNI (consumo de otras áreas) y las de DNI desconocido quedan
-fuera del cálculo, pero no se borran del origen.
+Las líneas sin DNI y las de DNI desconocido **sí están guardadas en la base**
+(`consumo.estado = 'sin_dni' | 'dni_huerfano'`, con `ref_texto` para "TALLER SOLDA",
+"SOLDADORES", "TOPICO"…), solo que no se atribuyen a una persona.
 
 ---
 
-## Regenerar los datos
+## Base de datos
 
-Si cambian los Excel de origen:
+El proyecto Supabase tiene el esquema de `db/schema.sql` y **todo** el consumo.
+La web lee con la clave publishable de `js/config.js` (RLS: lectura pública).
+
+| Tabla | Qué guarda |
+|---|---|
+| `gerencias`, `secciones`, `centros_costo` | jerarquía organizacional |
+| `puestos`, `plazas` | puesto y plaza (puesto + centro de costo) |
+| `familias`, `epp`, `precios` | catálogo, precio por unidad base y precio con vigencia |
+| `personas` | maestro de personal (DNI, nombre, puesto, ceco) |
+| `consumo` | **todas** las líneas de SAP (estado ok / sin_dni / dni_huerfano) |
+| `matriz_estandar` | el kit base editable: plaza × EPP, cobertura y origen (`auto`/`manual`) |
+
+Vistas que consume la web: `vw_meta`, `vw_epp_base`, `vw_costo_plaza`,
+`vw_matriz_detalle`, `vw_matriz_adicional` y `vw_consumo_persona`.
+`vw_calidad_datos` resume cuánto del gasto está identificado y cuánto no.
+
+## Cargar o recargar los datos
 
 ```powershell
-python scripts/exportar_datos.py --origen "C:\ruta\a\los\excel" --salida datos
+$env:SUPABASE_PAT="sbp_..."        # solo para SQL/DDL
+$env:SUPABASE_SECRET="sb_secret_..."   # datos (nunca va al repo)
+python scripts/importar_supabase.py --origen "C:\Users\edins\Downloads"
 ```
 
-Genera `datos/meta.json`, `columnas.json`, `matriz.json` y `consumo.json`.
-
----
-
-## Pasar a Supabase
-
-`js/data.js` es el **único** archivo que conoce el origen de los datos: expone
-`Datos.meta()`, `Datos.columnas()`, `Datos.matriz()` y `Datos.consumo()`.
-Hoy lee los JSON; cuando el esquema de `db/schema.sql` esté cargado y los datos
-importados, se reemplaza el cuerpo de esas cuatro funciones por consultas a las
-vistas correspondientes (`vw_costo_plaza`, `vw_matriz_detalle`, `vw_consumo_persona`).
+Trunca y vuelve a cargar: estructura, catálogo, personas, las 3.229 líneas de
+consumo y las 530 celdas de la matriz base. Si alguien editó la matriz a mano,
+esas filas quedan con `origen = 'manual'` para distinguirlas.
 
 ## Privacidad
 
-Los JSON de `datos/` contienen **DNI y nombres de trabajadores**. Están en
-`.gitignore` junto con los Excel de origen. No subirlos al repositorio.
+La base contiene **DNI y nombres de trabajadores**. La clave publishable solo
+permite leer; la secreta y el token personal viven en variables de entorno y no
+se suben al repositorio.

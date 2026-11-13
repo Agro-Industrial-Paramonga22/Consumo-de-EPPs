@@ -57,17 +57,28 @@ create table if not exists familias (
 );
 
 insert into familias (codigo, nombre, orden) values
-    ('CABEZA',    'Cabeza / Casco',          1),
-    ('AUDITIVO',  'Protección auditiva',      2),
-    ('RESPIRATO', 'Protección respiratoria',  3),
-    ('VISUAL',    'Protección visual',        4),
-    ('GUANTES',   'Guantes',                  5),
-    ('CALZADO',   'Calzado / Botas',          6),
-    ('SOLDADURA', 'Soldadura',                7),
-    ('ROPA',      'Ropa de trabajo',          8),
-    ('ALTURA',    'Altura / Ergonomía',       9),
-    ('OTROS',     'Otros',                   99)
+    ('CASCO',     'Casco',      1),
+    ('AUDITIVO',  'Auditivo',   2),
+    ('RESPIRADOR','Respirador', 3),
+    ('LENTE',     'Lente',      4),
+    ('GUANTE',    'Guante',     5),
+    ('BOTA',      'Bota',       6),
+    ('SOLDADURA', 'Soldadura',  7),
+    ('ROPA',      'Ropa',       8),
+    ('ARNES',     'Arnés',      9),
+    ('OTROS',     'Otros',     99)
 on conflict (codigo) do nothing;
+
+-- Nombres cortos para los chips de la matriz
+update familias set nombre = 'Casco'     where codigo = 'CASCO';
+update familias set nombre = 'Auditivo'  where codigo = 'AUDITIVO';
+update familias set nombre = 'Respirador' where codigo = 'RESPIRADOR';
+update familias set nombre = 'Lente'     where codigo = 'LENTE';
+update familias set nombre = 'Guante'    where codigo = 'GUANTE';
+update familias set nombre = 'Bota'      where codigo = 'BOTA';
+update familias set nombre = 'Soldadura' where codigo = 'SOLDADURA';
+update familias set nombre = 'Ropa'      where codigo = 'ROPA';
+update familias set nombre = 'Arnés'     where codigo = 'ARNES';
 
 -- factor = cuántas unidades base trae la unidad de compra.
 -- Ej.: LUNA BLANCA se compra por LOTE de 100 (factor 100, S/90 el lote
@@ -82,8 +93,12 @@ create table if not exists epp (
     factor         numeric(10,2) not null default 1 check (factor > 0),
     centro         text,
     grupo_compra   text,
+    solo_soldadura boolean not null default false,   -- capucha, mandil, escarpín de solda…
     activo         boolean not null default true
 );
+
+-- Para bases ya creadas
+alter table epp add column if not exists solo_soldadura boolean not null default false;
 
 -- Precio SIEMPRE por unidad base, con vigencia (corrige sin perder histórico)
 create table if not exists precios (
@@ -177,6 +192,15 @@ join lateral (
 ) p on true
 where e.activo;
 
+-- Catálogo con cuántas plazas lo tienen como base (columna de la matriz)
+create or replace view vw_epp_base
+with (security_invoker = true) as
+select ep.material, ep.descripcion, ep.familia_codigo, ep.familia, ep.familia_orden,
+       ep.unidad, ep.factor, ep.precio, count(m.plaza_id) as n_plazas
+from vw_epp_precio ep
+left join matriz_estandar m on m.epp_id = ep.material and m.requerido
+group by 1, 2, 3, 4, 5, 6, 7, 8;
+
 -- Plazas con su dotación real
 create or replace view vw_plazas
 with (security_invoker = true) as
@@ -221,6 +245,41 @@ ranked as (
 select plaza_id, material, familia_id, personas_que_usan, n_personas, cobertura_pct
 from ranked where rn = 1;
 
+-- Consumo adicional: lo que se consumió en la plaza pero NO está en la matriz
+create or replace view vw_matriz_adicional
+with (security_invoker = true) as
+with uso as (
+    select pl.id as plaza_id, co.material, count(distinct co.dni) as personas_que_usan
+    from consumo co
+    join personas pe on pe.dni = co.dni
+    join plazas pl   on pl.puesto_id = pe.puesto_id
+                    and pl.ceco = coalesce(pe.ceco, 'SIN-CECO')
+    where co.estado = 'ok'
+    group by 1, 2
+),
+tot as (
+    select pl.id as plaza_id, count(distinct co.dni)::numeric as n_consumidores
+    from consumo co
+    join personas pe on pe.dni = co.dni
+    join plazas pl   on pl.puesto_id = pe.puesto_id
+                    and pl.ceco = coalesce(pe.ceco, 'SIN-CECO')
+    where co.estado = 'ok'
+    group by 1
+)
+select u.plaza_id, u.material, u.personas_que_usan, t.n_consumidores,
+       round(100.0 * u.personas_que_usan / nullif(t.n_consumidores, 0), 1) as cobertura_pct,
+       case when e.solo_soldadura
+             and not (pu.nombre ilike '%SOLDADOR%' or pu.nombre ilike '%CALDERERO%'
+                      or pu.nombre ilike '%HERRERO%' or pu.nombre ilike '%MANIOBRISTA%')
+            then 'soldadura' else 'minoritario' end as motivo
+from uso u
+join tot t on t.plaza_id = u.plaza_id
+join plazas pl on pl.id = u.plaza_id
+join puestos pu on pu.id = pl.puesto_id
+join epp e on e.material = u.material
+left join matriz_estandar m on m.plaza_id = u.plaza_id and m.epp_id = u.material
+where m.plaza_id is null;
+
 -- Detalle de la matriz (una fila por celda EPP × plaza)
 create or replace view vw_matriz_detalle
 with (security_invoker = true) as
@@ -248,7 +307,7 @@ group by v.plaza_id, v.puesto, v.ceco, v.ceco_desc, v.seccion, v.personas;
 -- Consumo real por persona
 create or replace view vw_consumo_persona
 with (security_invoker = true) as
-select co.fecha, co.dni, pe.nombre, pu.nombre as puesto, pl.ceco, cc.descripcion as ceco_desc,
+select co.fecha, co.dni, pe.nombre, pu.nombre as puesto, pe.ceco, cc.descripcion as ceco_desc,
        s.nombre as seccion, co.material, ep.descripcion, ep.familia,
        co.cantidad, ep.precio,
        round(co.cantidad * ep.precio, 2)::numeric(12,2) as valor
@@ -289,6 +348,27 @@ select count(*)                                                          as line
        coalesce(sum(round(cantidad * precio, 2)) filter (where estado='dni_huerfano'), 0)::numeric(14,2) as valor_huerfano
 from consumo co
 join vw_epp_precio v on v.material = co.material;
+
+-- Números de portada de la matriz (un solo registro)
+create or replace view vw_meta
+with (security_invoker = true) as
+select
+  (select count(*) from vw_plazas)                                        as plazas,
+  (select count(*) from vw_consumo_plaza)                                 as plazas_con_consumo,
+  (select count(*) from vw_costo_plaza where epp_count > 0)               as plazas_con_kit,
+  (select count(*) from vw_epp_precio)                                    as epps,
+  (select count(distinct epp_id) from matriz_estandar where requerido)    as epps_base,
+  (select count(*) from matriz_estandar where requerido)                  as celdas,
+  (select count(*) from vw_matriz_adicional)                              as adicionales,
+  (select count(*) from personas)                                         as personas,
+  (select count(distinct dni) from vw_consumo_persona)                    as personas_con_consumo,
+  (select coalesce(sum(valor), 0) from vw_consumo_persona)                as valor,
+  (select coalesce(sum(costo_kit), 0) from vw_costo_plaza)                as costo_dotacion,
+  (select coalesce(array_agg(mes order by mes), '{}')
+     from (select distinct to_char(fecha, 'YYYY-MM') mes from vw_consumo_persona) x) as meses,
+  (select coalesce(jsonb_object_agg(mes, total order by mes), '{}'::jsonb)
+     from (select to_char(fecha, 'YYYY-MM') mes, round(sum(valor), 2) total
+           from vw_consumo_persona group by 1) y)                          as por_mes;
 
 -- ---------------------------------------------------------------------
 -- 7. SEGURIDAD (RLS): lectura pública, escritura sólo con clave secreta
