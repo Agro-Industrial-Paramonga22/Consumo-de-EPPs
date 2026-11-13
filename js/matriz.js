@@ -50,15 +50,28 @@
   }
 
   /* ---------------- KPIs ---------------- */
-  function pintarKpis() {
-    $('k-plazas').textContent = META.plazas;
-    $('k-plazas-sub').textContent = META.plazas_con_consumo + ' con consumo registrado';
-    $('k-epps').textContent = META.epps_base || META.epps;
-    $('k-costo').textContent = U.soles(META.costo_dotacion);
-    $('k-costo-sub').textContent = 'suma de las ' + META.plazas + ' plazas';
+    function pintarKpis() {
+    // Solo actualizamos el texto de la cabecera (los meses y el consumo global)
     document.querySelector('.brand p').textContent =
       U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
       ' · ' + U.soles(META.valor) + ' consumidos';
+  }
+
+  // NUEVA FUNCIÓN: Recalcula los KPIs según los filtros
+  function actualizarKpis(filas) {
+    const totalPlazas = filas.length;
+    const plazasConConsumo = filas.filter(f => f.v.length > 0).length;
+    const costoTotal = filas.reduce((sum, f) => sum + f.t, 0);
+    
+    // Contar cuántos EPPs únicos hay en las filas filtradas
+    const eppsUnicos = new Set();
+    filas.forEach(f => f.v.forEach(p => eppsUnicos.add(p[0])));
+
+    $('k-plazas').textContent = totalPlazas;
+    $('k-plazas-sub').textContent = plazasConConsumo + ' con consumo registrado';
+    $('k-epps').textContent = eppsUnicos.size;
+    $('k-costo').textContent = U.soles(costoTotal);
+    $('k-costo-sub').textContent = 'suma de las ' + totalPlazas + ' plazas';
   }
 
     function pintarFiltros() {
@@ -173,10 +186,12 @@
     });
   }
 
-  function render() {
+    function render() {
     const cols = columnasVisibles();
     const filas = filasVisibles();
-    pintarCabecera();          // encabezado y colgroup siguen a las columnas visibles
+    
+    actualizarKpis(filas); // <--- ESTA LÍNEA HACE QUE LOS NÚMEROS SE ACTUALICEN AL FILTRAR
+    pintarCabecera();          
 
     if (st.orden === 'total') {
       filas.sort(function (a, b) {
@@ -208,8 +223,7 @@
       partes.push(
         '<tr class="' + (vacia ? 'vacia' : '') + '" data-i="' + i + '">' +
           '<td class="col-fija">' +
-            '<div class="puesto-nom">' + U.esc(f.p) +
-              (f.n ? '<span class="puesto-n">' + f.n + '</span>' : '') + '</div>' +
+            '<div class="puesto-nom">' + U.esc(f.p) + '</div>' +
             '<div class="puesto-lug">' + U.esc(f.l) + '</div>' +
           '</td>' + celdas.join('') +
           '<td class="col-total">' +
