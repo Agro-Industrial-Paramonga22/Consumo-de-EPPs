@@ -1,0 +1,28 @@
+# --- Datos personales: NO subir al repo (es público) ---
+# Los Excel de origen y los seeds con DNI/nombres se quedan fuera de git.
+*.xlsx
+*.xls
+*.xlsb
+*.csv
+datos/
+db/seed*.sql
+!.gitignore
+
+# --- Entorno / secretos ---
+.env
+.env.*
+*.local
+EPPs Accesos.txt
+
+# --- Editor / sistema ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Node (por si luego se agrega tooling) ---
+node_modules/
+pnpm-lock.yaml
+package-lock.json

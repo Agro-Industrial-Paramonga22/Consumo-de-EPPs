@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consumo por puesto · Consumo de EPPs</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">EPP</div>
+    <div>
+      <h1>Consumo real por puesto de trabajo</h1>
+      <p>Cargando…</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Matriz</a>
+    <a href="consumo.html" class="activo">Consumo por puesto</a>
+  </nav>
+</header>
+
+<main>
+
+  <div id="cargando" class="card cargando">
+    <div class="spinner"></div>
+    Cargando datos…
+  </div>
+
+  <div id="app" class="oculto">
+
+    <section class="card filtros">
+      <div class="f-group">
+        <label for="f-puesto">Puesto de trabajo</label>
+        <select id="f-puesto"></select>
+      </div>
+      <div class="f-group">
+        <label for="f-lugar">Lugar de trabajo</label>
+        <select id="f-lugar"></select>
+      </div>
+      <div class="f-group">
+        <label for="f-mes">Mes</label>
+        <select id="f-mes"></select>
+      </div>
+      <div class="f-group">
+        <label>&nbsp;</label>
+        <button id="b-limpiar" class="chip" type="button">Limpiar filtros</button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi">
+        <div class="lbl">Personas mostradas</div>
+        <div class="val" id="k-personas">—</div>
+        <div class="sub">con consumo en el período</div>
+      </div>
+      <div class="kpi destacado">
+        <div class="lbl">Consumo del filtro</div>
+        <div class="val" id="k-total">—</div>
+        <div class="sub">valorizado a precio de maestro</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Promedio por persona</div>
+        <div class="val" id="k-prom">—</div>
+        <div class="sub">en el período seleccionado</div>
+      </div>
+    </section>
+
+    <div class="tabla-wrap" style="max-height:calc(100vh - 320px)">
+      <table class="consumo">
+        <thead>
+          <tr id="th-row"></tr>
+        </thead>
+        <tbody id="cuerpo"></tbody>
+        <tfoot id="pie-tabla"></tfoot>
+      </table>
+    </div>
+
+    <div class="pie">
+      <div class="leyenda" style="color:#94a3b8">
+        <span>Clic en una persona para ver el detalle de EPPs consumidos</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/consumo.js"></script>
+</body>
+</html>

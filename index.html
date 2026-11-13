@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matriz de EPPs por puesto · Consumo de EPPs</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">EPP</div>
+    <div>
+      <h1>Matriz de EPPs por puesto de trabajo</h1>
+      <p>Cargando…</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html" class="activo">Matriz</a>
+    <a href="consumo.html">Consumo por puesto</a>
+  </nav>
+</header>
+
+<main>
+
+  <div id="cargando" class="card cargando">
+    <div class="spinner"></div>
+    Cargando datos…
+  </div>
+
+  <div id="app" class="oculto">
+
+    <section class="card filtros">
+      <div class="f-group">
+        <label for="f-lugar">Lugar de trabajo</label>
+        <select id="f-lugar"><option value="">Todos</option></select>
+      </div>
+      <div class="f-group">
+        <label for="f-puesto">Puesto</label>
+        <input type="search" id="f-puesto" placeholder="Buscar puesto…">
+      </div>
+      <div class="f-group" style="flex:1">
+        <label>Familia de EPP</label>
+        <div class="chips" id="f-familias"></div>
+      </div>
+      <div class="f-group">
+        <label>Vista</label>
+        <div class="toggles">
+          <label class="sw"><input type="checkbox" id="t-vacias" checked> Plazas sin consumo</label>
+          <button id="b-limpiar" class="chip" type="button" style="margin-top:2px">Limpiar filtros</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi">
+        <div class="lbl">Plazas (puesto + lugar)</div>
+        <div class="val" id="k-plazas">—</div>
+        <div class="sub" id="k-plazas-sub"></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">EPPs en la matriz</div>
+        <div class="val" id="k-epps">—</div>
+        <div class="sub">son base en al menos un puesto</div>
+      </div>
+      <div class="kpi destacado">
+        <div class="lbl">Costo de dotación</div>
+        <div class="val" id="k-costo">—</div>
+        <div class="sub" id="k-costo-sub"></div>
+      </div>
+    </section>
+
+    <div class="tabla-wrap">
+      <table class="matriz" id="matriz">
+        <colgroup id="matriz-colgroup"></colgroup>
+        <thead id="matriz-head"></thead>
+        <tbody id="matriz-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pie">
+      <div class="leyenda">
+        <span><span class="muestra" style="background:#059669"></span> EPP de consumo base del puesto</span>
+        <span>lo adicional (unos pocos) no se marca: está en el detalle de la fila</span>
+        <span><span class="pendiente">sin consumo</span> plaza sin ningún registro</span>
+      </div>
+      <div id="contador" style="color:#94a3b8"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- panel lateral -->
+<aside class="drawer" id="drawer">
+  <button class="cerrar" id="b-cerrar" title="Cerrar">✕</button>
+  <div class="drawer-h">
+    <h2 id="d-titulo"></h2>
+    <p id="d-sub"></p>
+  </div>
+  <div class="drawer-b" id="d-cuerpo"></div>
+</aside>
+
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/matriz.js"></script>
+</body>
+</html>
