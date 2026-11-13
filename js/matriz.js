@@ -12,6 +12,7 @@
   let FILA_ACTUAL = null; // Variable para guardar la plaza que estamos viendo en el drawer
 
   const st = {
+    area: '', 
     lugar: '',
     puesto: '',
     fams: new Set(),
@@ -60,61 +61,70 @@
       ' · ' + U.soles(META.valor) + ' consumidos';
   }
 
-  /* ---------------- filtros ---------------- */
-  function pintarFiltros() {
-    const lugares = Array.from(new Set(FILAS.map(function (f) { return f.l; }))).sort();
-    const sel = $('f-lugar');
-    lugares.forEach(function (l) {
-      const o = document.createElement('option');
-      o.value = l; o.textContent = l;
-      sel.appendChild(o);
+    function pintarFiltros() {
+    // Escuchar cambios en los selectores
+    $('f-area').addEventListener('change', function () { 
+      st.area = this.value; 
+      st.puesto = ''; $('f-puesto').value = ''; // Reseteamos puesto al cambiar área
+      actualizarSelectores(); 
+      render(); 
     });
-
-    const fams = [];
-    COLS.forEach(function (c) {
-      if (!fams.some(function (x) { return x.f === c.f; })) fams.push({ f: c.f, fn: c.fn });
-    });
-    fams.sort(function (a, b) { return a.fn.localeCompare(b.fn); });
-
-    const cont = $('f-familias');
-    cont.innerHTML = fams.map(function (x) {
-      return '<span class="chip" data-fam="' + x.f + '">' +
-             '<span class="pt" style="background:' + U.color(x.f) + '"></span>' +
-             U.esc(x.fn) + '</span>';
-    }).join('');
-
-    cont.addEventListener('click', function (e) {
-      const chip = e.target.closest('.chip');
-      if (!chip) return;
-      const f = chip.dataset.fam;
-      if (st.fams.has(f)) st.fams.delete(f); else st.fams.add(f);
-      chip.classList.toggle('on');
-      render();
-    });
-
+    
     $('f-lugar').addEventListener('change', function () { st.lugar = this.value; render(); });
-    $('f-puesto').addEventListener('input', function () {
-      st.puesto = this.value.trim().toLowerCase();
-      clearTimeout(window._t); window._t = setTimeout(render, 160);
-    });
+    $('f-puesto').addEventListener('change', function () { st.puesto = this.value; render(); });
     $('t-vacias').addEventListener('change', function () { st.vacias = this.checked; render(); });
     $('b-limpiar').addEventListener('click', limpiar);
+    
+    actualizarSelectores();
   }
 
-  function limpiar() {
-    st.lugar = ''; st.puesto = ''; st.fams.clear();
+  // Función que llena los selectores dependiendo del Área seleccionada
+  function actualizarSelectores() {
+    const selArea = $('f-area');
+    if (selArea.options.length <= 1) {
+      const areas = Array.from(new Set(FILAS.map(f => f.area))).sort(); // <--- CAMBIAR f.a POR f.area
+      areas.forEach(a => {
+        const o = document.createElement('option'); o.value = a; o.textContent = a; selArea.appendChild(o);
+      });
+    }
+
+    // 2. Filtrar las filas base
+    const filasFiltradasPorArea = st.area ? FILAS.filter(f => f.area === st.area) : FILAS; // <--- CAMBIAR f.a POR f.area
+
+    // 3. Llenar el selector de Puestos
+    const selPuesto = $('f-puesto');
+    selPuesto.innerHTML = '<option value="">Todos</option>';
+    const puestos = Array.from(new Set(filasFiltradasPorArea.map(f => f.p))).sort();
+    puestos.forEach(p => {
+      const o = document.createElement('option'); o.value = p; o.textContent = p; selPuesto.appendChild(o);
+    });
+    selPuesto.value = st.puesto; // Mantener selección si aún existe
+
+    // 4. Llenar el selector de Lugares (CECOs)
+    const selLugar = $('f-lugar');
+    selLugar.innerHTML = '<option value="">Todos</option>';
+    const lugares = Array.from(new Set(filasFiltradasPorArea.map(f => f.l))).sort();
+    lugares.forEach(l => {
+      const o = document.createElement('option'); o.value = l; o.textContent = l; selLugar.appendChild(o);
+    });
+    selLugar.value = st.lugar;
+  }
+
+     function limpiar() {
+    st.area = ''; st.lugar = ''; st.puesto = '';
     st.vacias = true;
+    $('f-area').value = ''; 
     $('f-lugar').value = ''; $('f-puesto').value = '';
     $('t-vacias').checked = true;
-    document.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('on'); });
+    actualizarSelectores();
     render();
   }
 
   /* ---------------- cabecera de la tabla ---------------- */
-  function columnasVisibles() {
+    function columnasVisibles() {
     return COLS.filter(function (c) {
-      if (c.n === 0) return false;              // solo EPPs que son base en algún puesto
-      if (st.fams.size && !st.fams.has(c.f)) return false;
+      if (c.n === 0) return false;              
+      // Se eliminó la validación de st.fams
       return true;
     });
   }
@@ -153,11 +163,11 @@
   }
 
   /* ---------------- cuerpo ---------------- */
-  function filasVisibles() {
-    const q = st.puesto;
+    function filasVisibles() {
     return FILAS.filter(function (f) {
+      if (st.area && f.area !== st.area) return false; // <--- CAMBIAR f.a POR f.area
       if (st.lugar && f.l !== st.lugar) return false;
-      if (q && f.p.toLowerCase().indexOf(q) === -1) return false;
+      if (st.puesto && f.p !== st.puesto) return false;
       if (!st.vacias && f.v.length === 0) return false;
       return true;
     });
@@ -384,16 +394,6 @@
       await refrescarDatos();
     } catch (e) {
       alert('Error al guardar en Supabase: ' + e.message);
-    }
-  };
-
-  window.agregarEppManual = async function(epp_id) {
-    if (!FILA_ACTUAL) return;
-    try {
-      await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, 'hacer_base');
-      await refrescarDatos();
-    } catch (e) {
-      alert('Error al agregar: ' + e.message);
     }
   };
 

@@ -221,7 +221,7 @@ tbody .col-fija { background: var(--panel); z-index: 2 !important; }
 tbody .col-total { background: var(--panel); z-index: 2 !important; font-weight: 600; }
 
 .th-puesto {
-  height: 250px;
+  height: 120px; /* Antes decía 250px */
   display: flex;
   align-items: flex-end;
   font-size: 11px;
@@ -234,7 +234,7 @@ tbody .col-total { background: var(--panel); z-index: 2 !important; font-weight:
 /* encabezados verticales de EPP */
 th.col-epp {
   width: 42px; min-width: 42px; max-width: 42px;
-  height: 250px;
+  height: 120px; /* Antes decía 250px */
   position: sticky;
   top: 0;
 }
@@ -248,10 +248,11 @@ th.col-epp .rot {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  height: 212px;
+  height: 85px; /* REDUCIDO DE 212px A 85px */
   margin: 4px auto 0;
   padding: 2px 0;
   letter-spacing: -.1px;
+  transition: color 0.15s, font-weight 0.15s;
 }
 th.col-epp .precio {
   display: block;
@@ -260,7 +261,15 @@ th.col-epp .precio {
   font-variant-numeric: tabular-nums;
   padding-bottom: 6px;
 }
-th.col-epp:hover .rot { color: var(--ink); }
+
+/* NUEVO EFECTO HOVER: Pinta el fondo y resalta el texto */
+th.col-epp:hover {
+  background-color: #f1f5f9;
+}
+th.col-epp:hover .rot { 
+  color: var(--accent); 
+  font-weight: 700; 
+}
 
 /* celdas */
 tbody td {

@@ -33,26 +33,23 @@
 
   <div id="app" class="oculto">
 
-    <section class="card filtros">
+        <section class="card filtros">
       <div class="f-group">
-        <label for="f-lugar">Lugar de trabajo</label>
+        <label for="f-area">Área</label>
+        <select id="f-area"><option value="">Todas</option></select>
+      </div>
+      <div class="f-group">
+        <label for="f-lugar">Lugar de trabajo (CECO)</label>
         <select id="f-lugar"><option value="">Todos</option></select>
       </div>
       <div class="f-group">
         <label for="f-puesto">Puesto</label>
-        <input type="search" id="f-puesto" placeholder="Buscar puesto…">
+        <select id="f-puesto"><option value="">Todos</option></select>
       </div>
-      <div class="f-group" style="flex:1">
-        <label>Familia de EPP</label>
-        <div class="chips" id="f-familias"></div>
-      </div>
-      <div class="f-group">
-        <label>Vista</label>
-        <div class="toggles">
-          <label class="sw"><input type="checkbox" id="t-vacias" checked> Plazas sin consumo</label>
-          <button id="b-exportar" class="btn-exportar" type="button">Exportar matriz</button>
-          <button id="b-limpiar" class="chip" type="button" style="margin-top:2px">Limpiar filtros</button>
-        </div>
+      <div class="f-group" style="flex:1; align-items: flex-end; display: flex; gap: 8px;">
+        <label class="sw" style="margin-bottom: 8px;"><input type="checkbox" id="t-vacias" checked> Plazas sin consumo</label>
+        <button id="b-exportar" class="btn-exportar" type="button">Exportar matriz</button>
+        <button id="b-limpiar" class="chip" type="button">Limpiar filtros</button>
       </div>
     </section>
 
