@@ -1,6 +1,6 @@
 /* ============================================================
    Pantalla 2 — CONSUMO POR PUESTO
-   Filtro por puesto / lugar / mes -> personas de ese puesto,
+   Filtro por area / puesto / lugar / mes -> personas de ese puesto,
    con el consumo mes a mes y el detalle de EPPs al desplegar.
    ============================================================ */
 
@@ -9,7 +9,8 @@
   let META = null, COLS = [], PERSONAS = [];
   const porMaterial = new Map();
 
-  const st = { puesto: '', lugar: '', mes: '' };
+  // Cambiamos a buscarPersona
+    const st = { area: '', puesto: '', lugar: '', meses: [], buscarPersona: '' };
 
   const $ = function (id) { return document.getElementById(id); };
 
@@ -36,47 +37,112 @@
     $('cargando').classList.add('oculto');
   }
 
-  function pintarFiltros() {
-    const puestos = Array.from(new Set(PERSONAS.map(function (p) { return p.puesto; }))).sort();
-    $('f-puesto').innerHTML = '<option value="">Todos los puestos</option>' +
-      puestos.map(function (p) {
-        return '<option value="' + U.esc(p) + '">' + U.esc(p) + '</option>';
+    function pintarFiltros() {
+    // 1. Llenar el selector de Áreas
+    const areas = Array.from(new Set(PERSONAS.map(function (p) { return p.area; }))).sort();
+    $('f-area').innerHTML = '<option value="">Todas</option>' +
+      areas.map(function (a) {
+        return '<option value="' + U.esc(a) + '">' + U.esc(a) + '</option>';
       }).join('');
 
-    const lugares = Array.from(new Set(PERSONAS.map(function (p) { return p.lugar; }))).sort();
-    $('f-lugar').innerHTML = '<option value="">Todos los lugares</option>' +
-      lugares.map(function (l) {
-        return '<option value="' + U.esc(l) + '">' + U.esc(l) + '</option>';
-      }).join('');
+    // 2. Llenar el CUSTOM MULTISELECT de Meses
+    const dropMeses = $('ms-dropdown-meses');
+    dropMeses.innerHTML = META.meses.map(function (m) {
+      return `<label class="ms-item">
+                <input type="checkbox" value="${m}"> ${U.mesCorto(m)}
+              </label>`;
+    }).join('');
 
-    $('f-mes').innerHTML = '<option value="">Todos los meses</option>' +
-      META.meses.map(function (m) {
-        return '<option value="' + m + '">' + U.mesCorto(m) + '</option>';
-      }).join('');
+    $('ms-toggle-meses').addEventListener('click', function(e) {
+      e.stopPropagation();
+      dropMeses.classList.toggle('oculto');
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!dropMeses.contains(e.target) && e.target !== $('ms-toggle-meses')) {
+        dropMeses.classList.add('oculto');
+      }
+    });
+
+    dropMeses.addEventListener('change', function(e) {
+      if (e.target.type === 'checkbox') {
+        st.meses = Array.from(dropMeses.querySelectorAll('input:checked')).map(cb => cb.value);
+        
+        if (st.meses.length === 0) {
+          $('ms-toggle-meses').textContent = 'Todos los meses';
+        } else if (st.meses.length === 1) {
+          $('ms-toggle-meses').textContent = U.mesCorto(st.meses[0]);
+        } else {
+          $('ms-toggle-meses').textContent = st.meses.length + ' meses seleccionados';
+        }
+        render();
+      }
+    });
+
+    function actualizarSelectoresDependientes() {
+      const baseArea = st.area ? PERSONAS.filter(p => p.area === st.area) : PERSONAS;
+      const puestos = Array.from(new Set(baseArea.map(function (p) { return p.puesto; }))).sort();
+      $('f-puesto').innerHTML = '<option value="">Todos los puestos</option>' +
+        puestos.map(function (p) {
+          return '<option value="' + U.esc(p) + '">' + U.esc(p) + '</option>';
+        }).join('');
+      $('f-puesto').value = st.puesto; 
+
+      const lugares = Array.from(new Set(baseArea.map(function (p) { return p.lugar; }))).sort();
+      $('f-lugar').innerHTML = '<option value="">Todos los lugares</option>' +
+        lugares.map(function (l) {
+          return '<option value="' + U.esc(l) + '">' + U.esc(l) + '</option>';
+        }).join('');
+      $('f-lugar').value = st.lugar; 
+    }
+
+    actualizarSelectoresDependientes();
+
+    $('f-area').addEventListener('change', function () { 
+      st.area = this.value; 
+      st.puesto = ''; $('f-puesto').value = '';
+      st.lugar = ''; $('f-lugar').value = '';
+      actualizarSelectoresDependientes(); 
+      render(); 
+    });
 
     $('f-puesto').addEventListener('change', function () { st.puesto = this.value; render(); });
     $('f-lugar').addEventListener('change', function () { st.lugar = this.value; render(); });
-    $('f-mes').addEventListener('change', function () { st.mes = this.value; render(); });
+    
+    $('f-buscar-persona').addEventListener('input', function () {
+      st.buscarPersona = this.value.toLowerCase().trim();
+      clearTimeout(window._tBuscar); 
+      window._tBuscar = setTimeout(render, 160);
+    });
+
     $('b-limpiar').addEventListener('click', function () {
-      st.puesto = st.lugar = st.mes = '';
-      $('f-puesto').value = ''; $('f-lugar').value = ''; $('f-mes').value = '';
+      st.area = st.puesto = st.lugar = st.buscarPersona = '';
+      st.meses = [];
+      $('f-area').value = ''; $('f-puesto').value = ''; $('f-lugar').value = ''; 
+      $('f-buscar-persona').value = ''; 
+      dropMeses.querySelectorAll('input').forEach(cb => cb.checked = false);
+      $('ms-toggle-meses').textContent = 'Todos los meses';
+      actualizarSelectoresDependientes();
       render();
     });
   }
-
   function mesesVisibles() {
-    return st.mes ? [st.mes] : META.meses.slice();
+    if (st.meses.length === 0) return META.meses.slice();
+    return META.meses.filter(m => st.meses.includes(m));
   }
 
-  function render() {
+   function render() {
     const meses = mesesVisibles();
 
     const lista = PERSONAS.filter(function (p) {
+      if (st.area && p.area !== st.area) return false;
       if (st.puesto && p.puesto !== st.puesto) return false;
       if (st.lugar && p.lugar !== st.lugar) return false;
-      if (st.mes) {
-        const v = p.meses[st.mes] || 0;
-        if (v === 0) return false;
+      if (st.buscarPersona && p.nombre.toLowerCase().indexOf(st.buscarPersona) === -1) return false;
+      
+      if (st.meses.length > 0) {
+        const tieneConsumo = st.meses.some(m => (p.meses[m] || 0) > 0);
+        if (!tieneConsumo) return false;
       }
       return true;
     });
@@ -84,8 +150,8 @@
     lista.sort(function (a, b) { return b.total - a.total; });
 
     const suma = function (p) {
-      if (!st.mes) return p.total;
-      return p.meses[st.mes] || 0;
+      if (st.meses.length === 0) return p.total;
+      return st.meses.reduce((acc, m) => acc + (p.meses[m] || 0), 0);
     };
 
     let granTotal = 0;
@@ -95,13 +161,11 @@
     $('k-total').textContent = U.soles(granTotal);
     $('k-prom').textContent = lista.length ? U.soles(granTotal / lista.length) : U.soles(0);
 
-    // ---------- cabecera
     $('th-row').innerHTML =
       '<th style="min-width:300px">Persona</th>' +
       meses.map(function (m) { return '<th>' + U.mesBreve(m) + '</th>'; }).join('') +
       '<th style="min-width:110px">Total</th>';
 
-    // ---------- filas
     const html = [];
     lista.forEach(function (p, i) {
       const celdas = meses.map(function (m) {
@@ -123,7 +187,6 @@
       '<tr><td colspan="' + (meses.length + 2) + '"><div class="vacio">' +
       'No hay consumo para ese filtro.</div></td></tr>';
 
-    // ---------- fila de totales
     const totMes = meses.map(function (m) {
       let t = 0;
       lista.forEach(function (p) { t += p.meses[m] || 0; });
@@ -136,7 +199,6 @@
         '<td>' + U.soles(granTotal) + '</td>' +
       '</tr>';
 
-    // ---------- detalle al hacer clic
     $('cuerpo').onclick = function (e) {
       const tr = e.target.closest('tr.fila');
       if (!tr) return;
@@ -154,16 +216,20 @@
     };
   }
 
-  function detalleHTML(p, meses) {
+    function detalleHTML(p, meses) {
     const items = p.items.slice().sort(function (a, b) {
-      if (st.mes) return (b.meses[st.mes] || 0) - (a.meses[st.mes] || 0);
+      if (st.meses.length > 0) {
+        const sumA = st.meses.reduce((acc, m) => acc + (a.meses[m] || 0), 0);
+        const sumB = st.meses.reduce((acc, m) => acc + (b.meses[m] || 0), 0);
+        return sumB - sumA;
+      }
       return b.v - a.v;
     }).filter(function (it) {
-      if (!st.mes) return true;
-      return (it.meses[st.mes] || 0) > 0;
+      if (st.meses.length === 0) return true;
+      return st.meses.some(m => (it.meses[m] || 0) > 0);
     });
 
-    if (!items.length) return '<div class="detalle-in vacio">Sin detalle en ese mes.</div>';
+    if (!items.length) return '<div class="detalle-in vacio">Sin detalle en los meses seleccionados.</div>';
 
     const filas = items.map(function (it) {
       const col = porMaterial.get(it.m) || { d: it.m, fn: '', f: 'OTROS', p: 0, u: '' };
@@ -171,7 +237,11 @@
         const v = it.meses[m] || 0;
         return '<td class="' + (v ? '' : 'cero') + '">' + (v ? U.num(v) : '–') + '</td>';
       }).join('');
-      const tot = st.mes ? (it.meses[st.mes] || 0) : it.v;
+      
+      const tot = st.meses.length > 0 
+        ? st.meses.reduce((acc, m) => acc + (it.meses[m] || 0), 0)
+        : it.v;
+
       return '<tr>' +
         '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;' +
           'background:' + U.color(col.f) + ';margin-right:7px"></span>' +
@@ -181,10 +251,7 @@
         '<td style="font-weight:600">' + U.soles(tot) + '</td></tr>';
     }).join('');
 
-    return '<div class="detalle-in"><table class="det"><thead><tr>' +
-      '<th>EPP consumido</th>' +
-      meses.map(function (m) { return '<th>' + U.mesBreve(m) + '</th>'; }).join('') +
-      '<th>Total</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+    return '<div class="detalle-in"><table class="det"><tbody>' + filas + '</tbody></table></div>';
   }
 
   document.addEventListener('DOMContentLoaded', init);

@@ -19,6 +19,7 @@
   <nav>
     <a href="index.html">Matriz</a>
     <a href="consumo.html" class="activo">Consumo por puesto</a>
+    <a href="epps.html">Catálogo EPPs</a>
     <a href="actualizar.html">Actualizar datos</a>
   </nav>
 </header>
@@ -32,40 +33,70 @@
 
   <div id="app" class="oculto">
 
-    <section class="card filtros">
+        <section class="card filtros">
       <div class="f-group">
-        <label for="f-puesto">Puesto de trabajo</label>
-        <select id="f-puesto"></select>
+        <label for="f-area">Área</label>
+        <select id="f-area"><option value="">Todas</option></select>
       </div>
       <div class="f-group">
-        <label for="f-lugar">Lugar de trabajo</label>
-        <select id="f-lugar"></select>
+        <label for="f-lugar">Lugar de trabajo (CECO)</label>
+        <select id="f-lugar"><option value="">Todos</option></select>
       </div>
       <div class="f-group">
-        <label for="f-mes">Mes</label>
-        <select id="f-mes"></select>
+        <label for="f-puesto">Puesto</label>
+        <select id="f-puesto"><option value="">Todos</option></select>
       </div>
-      <div class="f-group">
-        <label>&nbsp;</label>
-        <button id="b-limpiar" class="chip" type="button">Limpiar filtros</button>
+      
+      <!-- BUSCADOR POR NOMBRE DE PERSONA -->
+      <div class="f-group" style="flex:1; max-width: 220px;">
+        <label for="f-buscar-persona">Buscar persona</label>
+        <input type="search" id="f-buscar-persona" placeholder="Escribe el nombre...">
+      </div>
+
+      <!-- SELECTOR MÚLTIPLE DE MESES -->
+      <div class="f-group custom-multiselect" id="multiselect-meses" style="position: relative;">
+        <label for="ms-toggle-meses">Mes</label>
+        <button type="button" class="ms-toggle" id="ms-toggle-meses">Todos los meses</button>
+        <div class="ms-dropdown oculto" id="ms-dropdown-meses"></div>
+      </div>
+
+      <div class="f-group" style="flex-direction: row; align-items: center; margin-left: auto;">
+        <button id="b-limpiar" class="btn-limpiar" type="button">Limpiar filtros</button>
       </div>
     </section>
 
-    <section class="kpis">
+        <section class="kpis">
       <div class="kpi">
-        <div class="lbl">Personas mostradas</div>
-        <div class="val" id="k-personas">—</div>
-        <div class="sub">con consumo en el período</div>
+        <div class="kpi-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Personas mostradas</div>
+          <div class="val" id="k-personas">—</div>
+          <div class="sub">con consumo en el período</div>
+        </div>
       </div>
+      
       <div class="kpi destacado">
-        <div class="lbl">Consumo del filtro</div>
-        <div class="val" id="k-total">—</div>
-        <div class="sub">valorizado a precio de maestro</div>
+        <div class="kpi-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Consumo del filtro</div>
+          <div class="val" id="k-total">—</div>
+          <div class="sub">valorizado a precio de maestro</div>
+        </div>
       </div>
+
       <div class="kpi">
-        <div class="lbl">Promedio por persona</div>
-        <div class="val" id="k-prom">—</div>
-        <div class="sub">en el período seleccionado</div>
+        <div class="kpi-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Promedio por persona</div>
+          <div class="val" id="k-prom">—</div>
+          <div class="sub">en el período seleccionado</div>
+        </div>
       </div>
     </section>
 

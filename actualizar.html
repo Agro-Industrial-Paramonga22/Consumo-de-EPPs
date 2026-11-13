@@ -19,33 +19,32 @@
   <nav>
     <a href="index.html">Matriz</a>
     <a href="consumo.html">Consumo por puesto</a>
+     <a href="epps.html">Catálogo EPPs</a>
     <a href="actualizar.html" class="activo">Actualizar datos</a>
   </nav>
 </header>
 
 <main>
 
-  <section class="card">
+    <section class="card">
     <h2 style="margin:0 0 6px;font-size:16px">Subir los Excel</h2>
     <p style="margin:0 0 16px;color:#64748b;font-size:13px">
-      Se reemplaza toda la base: estructura, personas, consumo, catálogo, precios y stock,
-      y se recalcula la matriz con las mismas reglas. Las celdas que hayas editado a mano
-      (origen <code>manual</code>) se conservan.
+      Puedes subir solo los archivos que necesites actualizar. Si solo subes Costos, se actualizarán los precios sin borrar tus datos de consumo o personas. Si subes Consumo, también debes subir el MAE y los Costos para que todo cuadre.
     </p>
 
     <div class="subir">
       <label class="fila">
-        <span class="nom">Consumo <b>*</b></span>
+        <span class="nom">Consumo</span>
         <input type="file" id="f-consumo" accept=".xlsx,.xls">
         <span class="ok" id="ok-consumo"></span>
       </label>
       <label class="fila">
-        <span class="nom">Maestro de personas (MAE) <b>*</b></span>
+        <span class="nom">Maestro de personas (MAE)</span>
         <input type="file" id="f-mae" accept=".xlsx,.xls">
         <span class="ok" id="ok-mae"></span>
       </label>
       <label class="fila">
-        <span class="nom">Costos actualizados <b>*</b></span>
+        <span class="nom">Costos actualizados <b style="color: #dc2626;">*</b></span>
         <input type="file" id="f-costos" accept=".xlsx,.xls">
         <span class="ok" id="ok-costos"></span>
       </label>

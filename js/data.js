@@ -5,9 +5,9 @@
      vw_meta, vw_epp_base, vw_costo_plaza, vw_consumo_plaza,
      vw_matriz_detalle, vw_matriz_adicional, vw_consumo_persona
 
-   La web usa Datos.meta(), Datos.columnas(), Datos.matriz(),
-   Datos.consumo(), Datos.actualizarMatriz(), Datos.catalogoEPPs()
-   y Datos.desactivarEPP().
+     La web usa Datos.meta(), Datos.columnas(), Datos.matriz(),
+   Datos.consumo(), Datos.actualizarMatriz(), Datos.catalogoEPPs(),
+   Datos.desactivarEPP(), Datos.actualizarPrecio() y Datos.agregarEPP().
    ============================================================ */
 
 window.Datos = (function () {
@@ -106,17 +106,20 @@ window.Datos = (function () {
     },
 
     /* Consumo real por persona (pantalla 2) */
-    consumo: function () {
+        consumo: function () {
       return una('consumo', async function () {
-        const lineas = await restAll('vw_consumo_persona?select=dni,nombre,puesto,ceco_desc,fecha,material,cantidad,valor');
+        // Agregamos 'seccion' a la consulta
+        const lineas = await restAll('vw_consumo_persona?select=dni,nombre,puesto,ceco_desc,fecha,material,cantidad,valor,seccion');
         const por = new Map();
         lineas.forEach(function (x) {
           if (!por.has(x.dni)) {
             por.set(x.dni, {
               dni: x.dni, nombre: x.nombre, puesto: x.puesto || '', lugar: x.ceco_desc || '',
+              area: x.seccion || 'Sin Área', // <--- GUARDAMOS EL ÁREA
               total: 0, meses: {}, items: {}
             });
           }
+          // ... el resto de la función queda exactamente igual ...
           const o = por.get(x.dni);
           const mes = String(x.fecha).slice(0, 7);
           const val = num(x.valor);
@@ -238,6 +241,49 @@ window.Datos = (function () {
       });
       if (!r.ok) throw new Error('Error al actualizar precio: ' + (await r.text()));
       
+      cache.delete('columnas');
+      cache.delete('matriz');
+      return true;
+    }
+        ,
+    // Insertar un EPP nuevo y su precio inicial
+    agregarEPP: async function (datos) {
+      const headers = {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      };
+
+      // 1. Insertar en la tabla 'epp'
+      const bodyEpp = {
+        material: datos.material,
+        descripcion: datos.descripcion,
+        familia_id: parseInt(datos.familia_id),
+        unidad: datos.unidad,
+        activo: true,
+        solo_soldadura: false
+      };
+      
+      let r = await fetch(CFG.SUPABASE_URL + '/rest/v1/epp', {
+        method: 'POST', headers: headers, body: JSON.stringify(bodyEpp)
+      });
+      if (!r.ok) throw new Error(await r.text());
+
+      // 2. Insertar en la tabla 'precios'
+      const bodyPrecio = {
+        material: datos.material,
+        precio: parseFloat(datos.precio),
+        moneda: 'PEN',
+        vigente_desde: new Date().toISOString().split('T')[0],
+        fuente: 'MANUAL'
+      };
+      
+      r = await fetch(CFG.SUPABASE_URL + '/rest/v1/precios', {
+        method: 'POST', headers: headers, body: JSON.stringify(bodyPrecio)
+      });
+      if (!r.ok) throw new Error(await r.text());
+
+      // Limpiamos caché
       cache.delete('columnas');
       cache.delete('matriz');
       return true;

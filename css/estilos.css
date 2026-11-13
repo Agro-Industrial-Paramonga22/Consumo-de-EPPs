@@ -146,20 +146,86 @@ select:focus, input[type=text]:focus, input[type=search]:focus {
 
 .toggles { gap: 8px; }
 
-/* ---------- KPIs ---------- */
+/* --- KPIs estilo tarjeta (compactas) --- */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.kpi { padding: 14px 16px; }
-.kpi .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 650; }
-.kpi .val { font-size: 24px; font-weight: 700; letter-spacing: -.6px; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.kpi .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.kpi.destacado { background: linear-gradient(160deg,#fff 0%, #f0fdf9 100%); border-color: #b9e6d3; }
-.kpi.destacado .val { color: var(--accent-dk); }
+.kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+}
+
+/* El cuadro del ícono */
+.kpi-icon {
+  width: 32px;
+  height: 32px;
+  background: #ecfdf5; /* Fondo verde muy clarito */
+  color: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Contenedor de textos */
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Textos mucho más pequeños */
+.kpi .lbl { 
+  font-size: 9px; 
+  text-transform: uppercase; 
+  letter-spacing: .4px; 
+  color: var(--muted); 
+  font-weight: 700; 
+}
+
+.kpi .val { 
+  font-size: 16px; 
+  font-weight: 700; 
+  letter-spacing: -.4px; 
+  margin-top: 1px; 
+  font-variant-numeric: tabular-nums; 
+  color: var(--ink);
+}
+
+.kpi .sub { 
+  font-size: 9.5px; 
+  color: var(--muted); 
+  margin-top: 1px; 
+}
+
+/* Estilo especial para el costo (texto verde) */
+.kpi.destacado {
+  background: linear-gradient(160deg, #fff 0%, #f0fdf9 100%); 
+  border-color: #b9e6d3;
+}
+.kpi.destacado .val { 
+  color: var(--accent-dk); 
+}
+
+/* Para que en pantallas pequeñas se pongan uno debajo del otro */
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: 1fr; }
+}
 
 /* ---------- tabla matriz ---------- */
 .tabla-wrap {
@@ -396,47 +462,11 @@ tr.vacia:hover .col-fija, tr.vacia:hover .col-total { background: #f8fafc; }
 }
 .res-item:hover { background: #f8fafc; color: var(--accent); font-weight: 600; }
 
-/* ---------- pantalla consumo ---------- */
-table.consumo { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-table.consumo thead th {
-  position: sticky; top: 0; z-index: 3;
-  background: #fbfcfe;
-  border-bottom: 2px solid var(--line);
-  padding: 10px 12px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
-  color: var(--muted); font-weight: 650;
-  text-align: right; white-space: nowrap;
-}
-table.consumo thead th:first-child { text-align: left; }
-table.consumo tbody td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--line-soft);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-table.consumo tbody td:first-child { text-align: left; font-variant-numeric: normal; }
-table.consumo tbody tr.fila:hover td { background: #f6fbf8; cursor: pointer; }
-table.consumo tbody tr.fila.abierta td { background: #ecfdf5; }
-
 .nombre { font-weight: 600; }
 .lugar { font-size: 11.5px; color: var(--muted); }
 
 .cero { color: #cbd5e1; }
 .destacado-num { font-weight: 650; color: var(--accent-dk); }
-
-tr.detalle td { background: #fafcfb; padding: 0; }
-.detalle-in { padding: 12px 16px 16px 34px; }
-table.det { width: 100%; font-size: 12px; border-collapse: collapse; }
-table.det th {
-  text-align: right; font-size: 10.5px; text-transform: uppercase;
-  color: var(--muted); font-weight: 650; padding: 4px 8px;
-  border-bottom: 1px solid var(--line);
-}
-table.det th:first-child { text-align: left; }
-table.det td { padding: 5px 8px; border-bottom: 1px solid #f4f7fa; text-align: right; font-variant-numeric: tabular-nums; }
-table.det td:first-child { text-align: left; font-variant-numeric: normal; }
-
 .fila-total td {
   font-weight: 700;
   border-top: 2px solid var(--ink);
@@ -601,3 +631,145 @@ table.det td:first-child { text-align: left; font-variant-numeric: normal; }
   color: var(--ink);
   text-decoration: underline;
 }
+/* --- Efecto Hover en el nombre del EPP --- */
+.epp-nombre {
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+.epp-nombre:hover {
+  color: var(--accent);
+  background-color: #f0fdf4;
+}
+
+/* --- Menú flotante para eliminar EPP --- */
+.popover-epp-catalogo {
+  position: absolute;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 6px;
+  z-index: 100;
+  padding: 4px;
+}
+.popover-epp-catalogo button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #dc2626;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.popover-epp-catalogo button:hover {
+  background: #fee2e2;
+}
+/* =========================================
+   ESTILOS UNIFICADOS PARA TABLA DE CONSUMO
+   ========================================= */
+
+/* Obligamos a ambas tablas a medir 100% y usar el mismo tipo de layout */
+table.consumo, table.det { 
+  width: 100%; 
+  border-collapse: collapse; 
+  table-layout: fixed; 
+}
+
+/* CABECERA DE LA TABLA PRINCIPAL */
+table.consumo thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: #fbfcfe;
+  border-bottom: 2px solid var(--line);
+  padding: 12px 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); font-weight: 650;
+  text-align: right; 
+}
+
+/* LA PRIMERA COLUMNA (Persona / EPP) MIDE 300px EN AMBAS TABLAS */
+table.consumo th:first-child, 
+table.consumo td:first-child,
+table.det td:first-child { 
+  width: 300px; 
+  text-align: left; 
+  font-variant-numeric: normal; 
+}
+
+/* LA ÚLTIMA COLUMNA (Total) MIDE 110px EN AMBAS TABLAS */
+table.consumo th:last-child, 
+table.consumo td:last-child,
+table.det td:last-child { 
+  width: 110px; 
+  text-align: right; 
+  font-variant-numeric: tabular-nums; 
+}
+
+/* LAS CELDAS NORMALES (Meses) SE ALINEAN A LA DERECHA */
+table.consumo tbody td,
+table.det td { 
+  padding: 10px 12px; 
+  border-bottom: 1px solid var(--line-soft);
+  text-align: right; 
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* EFECTOS VISUALES DE LA TABLA PRINCIPAL */
+table.consumo tbody tr.fila:hover td { background: #f6fbf8; cursor: pointer; }
+table.consumo tbody tr.fila.abierta td { background: #ecfdf5; }
+
+/* CONTENEDOR DEL DETALLE (Sin padding para que la tabla interna se expanda) */
+tr.detalle td { 
+  background: #fafcfb; 
+  padding: 0; 
+}
+.detalle-in { 
+  padding: 0; 
+  margin: 0;
+}
+
+/* SANGRÍA PARA EL NOMBRE DEL EPP EN EL DETALLE */
+table.det td:first-child { 
+  padding-left: 34px; 
+  font-weight: 500;
+}
+/* --- Selector Múltiple de Meses --- */
+.ms-toggle {
+  min-width: 200px; padding: 9px 32px 9px 12px; border: 1px solid #cbd5e1;
+  border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--ink);
+  background-color: #fff; text-align: left; cursor: pointer; position: relative; appearance: none;
+}
+.ms-toggle::after {
+  content: ''; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  border: 5px solid transparent; border-top-color: #64748b;
+}
+.ms-toggle:focus { border-color: var(--accent); outline: none; }
+.ms-dropdown {
+  position: absolute; top: 100%; left: 0; min-width: 200px; background: #fff;
+  border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100; max-height: 250px; overflow-y: auto; padding: 6px; margin-top: 4px;
+}
+.ms-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  font-size: 13px; cursor: pointer; border-radius: 4px; color: var(--ink); transition: background 0.15s;
+}
+.ms-item:hover { background: #f1f5f9; }
+.ms-item input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+/* --- MODAL PARA AGREGAR EPP --- */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-content {
+  background: #fff; padding: 24px; border-radius: 10px; width: 420px; max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.modal-content h2 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: var(--ink); }
+.modal-content .f-group { display: flex; flex-direction: column; }
+.modal-content .f-group label { font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #475569; }
+.modal-content .f-group input, .modal-content .f-group select { 
+  width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; 
+}
+.modal-content .f-group input:focus, .modal-content .f-group select:focus { border-color: var(--accent); outline: none; }

@@ -85,22 +85,31 @@
         return;
       }
 
-      const res = JSON.parse(txt);
+            const res = JSON.parse(txt);
       const m = res.meta || {};
-      $('resumen').innerHTML =
-        '<table class="resumen-tabla">' +
-        fila('Personas', fmt(res.personas)) +
-        fila('Plazas', fmt(res.plazas)) +
-        fila('Consumo', fmt(res.consumo) + ' líneas (' + fmt(res.consumo_ok) + ' con DNI · ' +
-             fmt(res.consumo_sin_dni) + ' sin DNI · ' + fmt(res.consumo_huerfano) + ' huérfano)') +
-        fila('EPPs', fmt(res.epps)) +
-        fila('Matriz base', fmt(res.matriz) + ' celdas · ' + fmt(m.epps_base) + ' EPPs') +
-        fila('Costo de dotación', soles(m.costo_dotacion)) +
-        fila('Consumo del período', soles(m.valor)) +
-        (res.manual_previas ? fila('Celdas manuales conservadas', fmt(res.manual_previas)) : '') +
-        '</table>' +
-        '<p style="margin:14px 0 0;font-size:13px"><a href="index.html">Ver la matriz →</a></p>';
+      
+      let htmlResumen = '<table class="resumen-tabla">';
+      
+      // Solo mostramos las filas de lo que se subió
+      if (res.consumo > 0 && archivo('f-consumo')) {
+        htmlResumen += fila('Personas', fmt(res.personas));
+        htmlResumen += fila('Plazas', fmt(res.plazas));
+        htmlResumen += fila('Consumo', fmt(res.consumo) + ' líneas');
+      }
+      if (res.epps > 0 && archivo('f-costos')) {
+        htmlResumen += fila('EPPs Actualizados', fmt(res.epps));
+      }
+      
+      htmlResumen += fila('Costo de dotación', soles(m.costo_dotacion));
+      htmlResumen += fila('Consumo del período', soles(m.valor));
+      
+      if (res.manual_previas) {
+        htmlResumen += fila('Celdas manuales conservadas', fmt(res.manual_previas));
+      }
+      
+      htmlResumen += '</table><p style="margin:14px 0 0;font-size:13px"><a href="index.html">Ver la matriz →</a></p>';
 
+      $('resumen').innerHTML = htmlResumen;
       $('resultado').style.display = 'block';
       $('estado').textContent = 'Listo.';
     } catch (e) {
