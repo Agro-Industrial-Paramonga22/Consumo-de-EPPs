@@ -7,5 +7,10 @@
    ===================================================================== */
 window.EPP_CONFIG = {
   SUPABASE_URL: 'https://yyzwlqtbhcbyftwwtexi.supabase.co',
-  SUPABASE_KEY: 'sb_publishable_BI0eXBgpM6lgBuHH7pprdQ_IcM5Mryl'
+  SUPABASE_KEY: 'sb_publishable_BI0eXBgpM6lgBuHH7pprdQ_IcM5Mryl',
+
+  // Clave de la función cargar_todo(): evita que cualquiera con la clave
+  // pública vacíe la base. No es seguridad real (está en el código), es
+  // una barrera; para eso está RLS.
+  CLAVE_CARGA: 'epp-paramonga-2026'
 };

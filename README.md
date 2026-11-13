@@ -30,16 +30,23 @@ python -m http.server 8877
 ```
 ├─ index.html              Pantalla 1 — Matriz EPP × puesto
 ├─ consumo.html            Pantalla 2 — Consumo real por puesto y mes
+├─ actualizar.html         Pantalla 3 — Subir los Excel y actualizar la base
 ├─ css/estilos.css
 ├─ js/
-│  ├─ config.js            URL + clave publishable de Supabase
-│  ├─ data.js              consultas a las vistas (único punto de acceso a datos)
+│  ├─ config.js            URL, clave publishable y clave de carga
+│  ├─ data.js              consultas a las vistas (único acceso a datos)
 │  ├─ matriz.js
-│  └─ consumo.js
-├─ db/schema.sql           Tablas, vistas y RLS (idempotente)
+│  ├─ consumo.js
+│  ├─ etl.js               lee los Excel en el navegador (SheetJS)
+│  ├─ actualizar.js
+│  ├─ exportar.js
+│  └─ vendor/              SheetJS local (funciona sin internet)
+├─ db/
+│  ├─ schema.sql           Tablas, vistas y RLS (idempotente)
+│  └─ actualizacion.sql    Funciones cargar_todo() y recalcular_matriz()
 └─ scripts/
-   ├─ sb_cliente.py        cliente REST / SQL
-   └─ importar_supabase.py ETL: Excel → Supabase (todo, incluido lo sin DNI)
+   ├─ sb_cliente.py        cliente REST / SQL (línea de comandos)
+   └─ importar_supabase.py ETL por línea de comandos
 ```
 
 ---
@@ -78,6 +85,12 @@ consumo no se toca.
 (49 hoy). Se muestran las 389 plazas, incluidas las 186 sin consumo, marcadas en
 gris con la etiqueta *sin consumo*. El detalle de cada fila lista el **consumo
 adicional** (lo que usan unos pocos y queda fuera de la matriz).
+
+### Exportar
+
+El botón **Exportar matriz** descarga un `.xlsx` con la tabla tal como se ve: EPPs en
+columnas, puestos y lugar a la izquierda, la fila de precios unitarios y la columna
+**TOTAL KIT (S/)**. No exporta el consumo.
 
 ### Sobre el precio
 
@@ -120,17 +133,28 @@ Vistas que consume la web: `vw_meta`, `vw_epp_base`, `vw_costo_plaza`,
 `vw_matriz_detalle`, `vw_matriz_adicional` y `vw_consumo_persona`.
 `vw_calidad_datos` resume cuánto del gasto está identificado y cuánto no.
 
-## Cargar o recargar los datos
+## Actualizar los datos (sin entrar a Supabase)
+
+1. Abrir `actualizar.html`.
+2. Elegir los Excel **tal como los baja el SAP**: Consumo, Maestro de personas (MAE)
+   y Costos son obligatorios; Maestro de servicios y Stock son opcionales.
+3. **Actualizar base**. El navegador lee los archivos y llama a la función
+   `cargar_todo()`; la base se reemplaza completa y la matriz se recalcula.
+
+La función guarda y reinserta las celdas de `matriz_estandar` con `origen = 'manual'`,
+así que lo que hayas corregido a mano no se pierde.
+
+`cargar_todo()` pide una clave (`config.js → CLAVE_CARGA`) para que no la dispare
+cualquiera que tenga la clave publishable. Es una barrera, no seguridad real: si el
+sitio va a ser público, hay que pasar a login (Supabase Auth).
+
+## Cargar por línea de comandos (respaldo)
 
 ```powershell
-$env:SUPABASE_PAT="sbp_..."        # solo para SQL/DDL
-$env:SUPABASE_SECRET="sb_secret_..."   # datos (nunca va al repo)
+$env:SUPABASE_PAT="sbp_..."
+$env:SUPABASE_SECRET="sb_secret_..."
 python scripts/importar_supabase.py --origen "C:\Users\edins\Downloads"
 ```
-
-Trunca y vuelve a cargar: estructura, catálogo, personas, las 3.229 líneas de
-consumo y las 530 celdas de la matriz base. Si alguien editó la matriz a mano,
-esas filas quedan con `origen = 'manual'` para distinguirlas.
 
 ## Privacidad
 

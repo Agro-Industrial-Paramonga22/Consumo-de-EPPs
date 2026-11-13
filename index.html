@@ -19,6 +19,7 @@
   <nav>
     <a href="index.html" class="activo">Matriz</a>
     <a href="consumo.html">Consumo por puesto</a>
+    <a href="actualizar.html">Actualizar datos</a>
   </nav>
 </header>
 
@@ -48,6 +49,7 @@
         <label>Vista</label>
         <div class="toggles">
           <label class="sw"><input type="checkbox" id="t-vacias" checked> Plazas sin consumo</label>
+          <button id="b-exportar" class="btn-exportar" type="button">Exportar matriz</button>
           <button id="b-limpiar" class="chip" type="button" style="margin-top:2px">Limpiar filtros</button>
         </div>
       </div>
@@ -101,8 +103,10 @@
   <div class="drawer-b" id="d-cuerpo"></div>
 </aside>
 
+<script src="js/vendor/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data.js"></script>
+<script src="js/exportar.js"></script>
 <script src="js/matriz.js"></script>
 </body>
 </html>

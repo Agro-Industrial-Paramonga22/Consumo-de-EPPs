@@ -426,3 +426,36 @@ table.det td:first-child { text-align: left; font-variant-numeric: normal; }
   .col-fija { width: 220px; min-width: 220px; max-width: 220px; }
   main { padding: 12px; }
 }
+
+/* ---------- pantalla actualizar ---------- */
+.subir { display: flex; flex-direction: column; gap: 8px; }
+.subir .fila {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: #fbfcfe; cursor: pointer;
+}
+.subir .fila:hover { border-color: #94a3b8; }
+.subir .nom { width: 230px; font-size: 13px; color: var(--ink-soft); }
+.subir .nom b { color: #dc2626; }
+.subir input[type=file] { font-size: 12px; color: var(--ink-soft); flex: 1; }
+.subir .ok { font-size: 12px; color: var(--muted); min-width: 190px; text-align: right; }
+
+.btn-primario {
+  background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-primario:hover { background: var(--accent-dk); }
+.btn-primario:disabled { opacity: .55; cursor: default; }
+
+.resumen-tabla { border-collapse: collapse; font-size: 13px; }
+.resumen-tabla th {
+  text-align: left; padding: 6px 18px 6px 0; color: var(--ink-soft); font-weight: 600;
+}
+.resumen-tabla td { padding: 6px 0; font-variant-numeric: tabular-nums; }
+.resumen-tabla tr + tr th, .resumen-tabla tr + tr td { border-top: 1px solid var(--line-soft); }
+
+.btn-exportar {
+  background: #fff; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-exportar:hover { border-color: #94a3b8; }
