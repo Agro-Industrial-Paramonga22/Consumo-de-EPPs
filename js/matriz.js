@@ -9,6 +9,7 @@
   const U = Util;
   let META = null, COLS = [], FILAS = [];
   const porMaterial = new Map();
+  let FILA_ACTUAL = null; // Variable para guardar la plaza que estamos viendo en el drawer
 
   const st = {
     lugar: '',
@@ -223,6 +224,7 @@
 
   /* ---------------- panel de detalle ---------------- */
   function abrirDetalle(f) {
+    FILA_ACTUAL = f; // Guardamos la fila actual
     const d = $('drawer');
     $('d-titulo').textContent = f.p;
     $('d-sub').textContent = f.l + ' · ' + (f.n || 0) + ' persona(s) con consumo en esta plaza';
@@ -236,8 +238,9 @@
         return { c: porMaterial.get(p[0]), cob: p[1] };
       }).sort(function (a, b) { return b.c.p - a.c.p; });
 
+      // --- ÍTEMS DEL KIT BASE (Interactivos) ---
       html = items.map(function (it) {
-        return '<div class="kit-item">' +
+        return '<div class="kit-item" data-epp="' + it.c.m + '" data-tipo="base">' +
           '<span class="pt" style="background:' + U.color(it.c.f) + '"></span>' +
           '<div class="desc">' + U.esc(it.c.d) +
             '<div class="fam">' + U.esc(it.c.fn) + ' · lo recibió el ' + it.cob + '%</div></div>' +
@@ -245,12 +248,15 @@
       }).join('') +
       '<div class="kit-total"><span>Costo del kit base</span><span>' + U.soles(f.t) + '</span></div>';
 
+      // --- ÍTEMS ADICIONALES (Interactivos) ---
       if (f.a && f.a.length) {
         html += '<div style="margin-top:14px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em">' +
                 'Consumo adicional · fuera de la matriz</div>';
         html += f.a.map(function (p) {
           const c = porMaterial.get(p[0]);
-          return '<div class="kit-item" style="opacity:.65">' +
+          // Validación por si el EPP adicional no está en la lista de columnas base
+          if(!c) return ''; 
+          return '<div class="kit-item" data-epp="' + c.m + '" data-tipo="adicional" style="opacity:.65">' +
             '<span class="pt" style="background:' + U.color(c.f) + '"></span>' +
             '<div class="desc">' + U.esc(c.d) +
               '<div class="fam">' + U.esc(c.fn) + ' · ' + (p[2] === 'soldadura' ? 'solo para soldadura' : 'lo usan unos pocos') +
@@ -259,12 +265,165 @@
         }).join('');
       }
 
-      html += '<p style="font-size:11.5px;color:#94a3b8;margin-top:10px;line-height:1.4">' +
+      // --- BOTÓN PARA AGREGAR NUEVO EPP ---
+      html += '<div style="margin-top:16px; text-align:center;">' +
+              '<button id="btn-add-epp" class="btn-exportar" style="width:100%">+ Agregar EPP al kit</button>' +
+              '<div id="buscador-epp" class="oculto" style="margin-top:10px; position:relative;">' +
+              '<input type="text" id="input-buscar-epp" placeholder="Escribe el nombre del EPP..." style="width:100%; box-sizing:border-box; padding:8px;">' +
+              '<div id="resultados-epp" class="resultados-busqueda"></div>' +
+              '</div></div>';
+      
+      html += '<p style="font-size:11.5px;color:#94a3b8;margin-top:14px;line-height:1.4">' +
       'La matriz es el consumo base del puesto: un EPP por familia (el que usa más gente) ' +
-      'y solo si lo usa la mayoría. Lo que usan unos pocos sigue en la pantalla de consumo.</p>';
+      'y solo si lo usa la mayoría. Haz clic en un EPP para moverlo entre el Kit Base y el Consumo Adicional.</p>';
     }
     $('d-cuerpo').innerHTML = html;
     d.classList.add('abierto');
+
+    configurarEventosDrawer();
+  }
+
+  /* ---------------- Eventos dentro del Drawer ---------------- */
+  function configurarEventosDrawer() {
+    const cont = $('d-cuerpo');
+
+    // 1. Manejo de clics (Popover o Botón de Agregar)
+    cont.onclick = function(e) {
+      const item = e.target.closest('.kit-item');
+      const btnAdd = e.target.closest('#btn-add-epp');
+      
+      // Si hace clic en "+ Agregar EPP"
+      if (btnAdd) {
+        $('buscador-epp').classList.toggle('oculto');
+        if(!$('buscador-epp').classList.contains('oculto')) $('input-buscar-epp').focus();
+        return;
+      }
+
+      // Si hace clic en un EPP de la lista
+      if (item) {
+        mostrarPopover(item, e);
+      } else {
+        document.querySelectorAll('.popover-epp').forEach(el => el.remove());
+      }
+    };
+
+    // 2. Buscador predictivo de EPPs
+    const input = $('input-buscar-epp');
+    if (input) {
+      input.oninput = function() {
+        const q = this.value.toLowerCase().trim();
+        const res = $('resultados-epp');
+        if (q.length < 2) { res.innerHTML = ''; return; }
+        
+        // Filtra el catálogo completo de EPPs (COLS)
+        const matches = COLS.filter(c => c.d.toLowerCase().includes(q)).slice(0, 5);
+        
+        if(matches.length === 0) {
+          res.innerHTML = '<div class="res-item" style="color:#94a3b8; cursor:default;">No se encontraron coincidencias</div>';
+          return;
+        }
+
+        res.innerHTML = matches.map(c => 
+          `<div class="res-item" data-id="${c.m}" data-nombre="${U.esc(c.d)}">
+            <span style="color:${U.color(c.f)}; margin-right:6px;">●</span> ${U.esc(c.d)}
+           </div>`
+        ).join('');
+        
+        // Evento clic para seleccionar del resultado
+        res.querySelectorAll('.res-item').forEach(el => {
+          el.onclick = () => window.agregarEppManual(el.dataset.id);
+        });
+      };
+    }
+  }
+
+  // Muestra el menú flotante al hacer clic en un EPP
+   function mostrarPopover(item, event) {
+    document.querySelectorAll('.popover-epp').forEach(el => el.remove());
+    
+    const epp_id = item.dataset.epp;
+    const tipo = item.dataset.tipo;
+    const rect = item.getBoundingClientRect();
+    
+    const pop = document.createElement('div');
+    pop.className = 'popover-epp';
+    pop.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (rect.left + window.scrollX + 20) + 'px';
+    
+    let botones = '';
+    if (tipo === 'base') {
+      botones += `<button onclick="window.ejecutarMovimiento('${epp_id}', 'quitar_base')">Mover a consumo adicional</button>`;
+    } else {
+      botones += `<button onclick="window.ejecutarMovimiento('${epp_id}', 'hacer_base')">Mover a kit base</button>`;
+    }
+    
+    // Agregamos el botón de eliminar
+    botones += `<button class="btn-eliminar" onclick="window.ejecutarMovimiento('${epp_id}', 'eliminar')">Eliminar de la plaza</button>`;
+    
+    pop.innerHTML = botones;
+    document.body.appendChild(pop);
+    
+    setTimeout(() => {
+      document.addEventListener('click', function closePop(e) {
+        if (!pop.contains(e.target) && !item.contains(e.target)) { 
+          pop.remove(); 
+          document.removeEventListener('click', closePop); 
+        }
+      });
+    }, 10);
+  }
+
+    // --- Funciones Globales para Supabase ---
+  
+  window.ejecutarMovimiento = async function(epp_id, accion) {
+    if (!FILA_ACTUAL) return;
+    document.querySelectorAll('.popover-epp').forEach(el => el.remove());
+    
+    try {
+      await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, accion);
+      await refrescarDatos();
+    } catch (e) {
+      alert('Error al guardar en Supabase: ' + e.message);
+    }
+  };
+
+  window.agregarEppManual = async function(epp_id) {
+    if (!FILA_ACTUAL) return;
+    try {
+      await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, 'hacer_base');
+      await refrescarDatos();
+    } catch (e) {
+      alert('Error al agregar: ' + e.message);
+    }
+  };
+
+  window.agregarEppManual = async function(epp_id) {
+    if (!FILA_ACTUAL) return;
+    try {
+      await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, 'hacer_base', 1);
+      await refrescarDatos();
+    } catch (e) {
+      alert('Error al agregar: ' + e.message);
+    }
+  };
+
+  // Función auxiliar para recargar la tabla y el drawer sin refrescar la página web
+  async function refrescarDatos() {
+    const todasLasFilas = await Datos.matriz();
+    // Buscamos la fila que teníamos abierta para actualizarla
+    const filaActualizada = todasLasFilas.find(f => f.p === FILA_ACTUAL.p && f.l === FILA_ACTUAL.l);
+    
+    // Volvemos a crear el mapa de EPPs
+    filaActualizada._m = new Map();
+    filaActualizada.v.forEach(p => filaActualizada._m.set(p[0], p[1]));
+    
+    // Actualizamos el arreglo global FILAS
+    const idx = FILAS.findIndex(f => f.p === FILA_ACTUAL.p && f.l === FILA_ACTUAL.l);
+    if (idx !== -1) FILAS[idx] = filaActualizada;
+    
+    // Repintamos todo
+    render(); 
+    abrirDetalle(filaActualizada);
   }
 
   function cerrarDetalle() { $('drawer').classList.remove('abierto'); }

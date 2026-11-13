@@ -5,9 +5,8 @@
      vw_meta, vw_epp_base, vw_costo_plaza, vw_consumo_plaza,
      vw_matriz_detalle, vw_matriz_adicional, vw_consumo_persona
 
-   La web solo usa Datos.meta(), Datos.columnas(), Datos.matriz()
-   y Datos.consumo(). Si cambia el origen, este es el único archivo
-   que se toca.
+   La web solo usa Datos.meta(), Datos.columnas(), Datos.matriz(),
+   Datos.consumo() y Datos.actualizarMatriz().
    ============================================================ */
 
 window.Datos = (function () {
@@ -94,6 +93,7 @@ window.Datos = (function () {
           const v = (base.get(p.plaza_id) || []).slice().sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
           const a = (adic.get(p.plaza_id) || []).slice().sort(function (x, y) { return x[1] - y[1]; });
           return {
+            id: p.plaza_id, // <--- ¡AQUÍ ESTÁ LA MAGIA! Guardamos el ID de la plaza
             p: p.puesto, l: p.ceco_desc || '(sin centro de costo)',
             n: consumidores.get(p.plaza_id) || 0,
             v: v, t: num(p.costo_kit), a: a
@@ -133,6 +133,60 @@ window.Datos = (function () {
           return o;
         });
       });
+    },
+
+        /* NUEVA FUNCIÓN: Escribir en Supabase (matriz_estandar) */
+    actualizarMatriz: async function (plaza_id, epp_id, accion) {
+      const url = CFG.SUPABASE_URL + '/rest/v1/matriz_estandar';
+      const headers = {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      };
+
+      if (accion === 'quitar_base') {
+        // DELETE: Lo saca del kit base. Al no estar en matriz_estandar, la vista 
+        // vw_matriz_adicional lo atrapará y lo mostrará en consumo adicional.
+        const r = await fetch(url + '?plaza_id=eq.' + plaza_id + '&epp_id=eq.' + epp_id, {
+          method: 'DELETE', headers: headers
+        });
+        if (!r.ok) throw new Error('Error al eliminar: ' + (await r.text()));
+        cache.delete('matriz');
+        return true;
+      } 
+      
+      if (accion === 'hacer_base') {
+        // INSERT: Solo enviamos lo estrictamente necesario. Supabase llena el resto.
+        const body = {
+          plaza_id: plaza_id,
+          epp_id: epp_id,
+          requerido: true,
+          origen: 'manual' // Marcamos que fue agregado a mano
+        };
+        const r = await fetch(url, {
+          method: 'POST', headers: headers, body: JSON.stringify(body)
+        });
+        if (!r.ok) throw new Error('Error al insertar: ' + (await r.text()));
+        cache.delete('matriz');
+        return true;
+      }
+       if (accion === 'eliminar') {
+        // UPSERT con requerido: false. Esto lo oculta de la vista Base 
+        // y también lo saca de la vista Adicional (que busca los que son NULL).
+        const body = {
+          plaza_id: plaza_id,
+          epp_id: epp_id,
+          requerido: false,
+          origen: 'manual'
+        };
+        const r = await fetch(url, {
+          method: 'POST', headers: headers, body: JSON.stringify(body)
+        });
+        if (!r.ok) throw new Error('Error al eliminar: ' + (await r.text()));
+        cache.delete('matriz');
+        return true;
+      }
     }
   };
 })();
