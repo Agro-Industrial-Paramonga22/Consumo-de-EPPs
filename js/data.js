@@ -5,8 +5,9 @@
      vw_meta, vw_epp_base, vw_costo_plaza, vw_consumo_plaza,
      vw_matriz_detalle, vw_matriz_adicional, vw_consumo_persona
 
-   La web solo usa Datos.meta(), Datos.columnas(), Datos.matriz(),
-   Datos.consumo() y Datos.actualizarMatriz().
+   La web usa Datos.meta(), Datos.columnas(), Datos.matriz(),
+   Datos.consumo(), Datos.actualizarMatriz(), Datos.catalogoEPPs()
+   y Datos.desactivarEPP().
    ============================================================ */
 
 window.Datos = (function () {
@@ -93,7 +94,7 @@ window.Datos = (function () {
           const v = (base.get(p.plaza_id) || []).slice().sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
           const a = (adic.get(p.plaza_id) || []).slice().sort(function (x, y) { return x[1] - y[1]; });
           return {
-            id: p.plaza_id, // <--- ¡AQUÍ ESTÁ LA MAGIA! Guardamos el ID de la plaza
+            id: p.plaza_id,
             p: p.puesto, l: p.ceco_desc || '(sin centro de costo)',
             n: consumidores.get(p.plaza_id) || 0,
             v: v, t: num(p.costo_kit), a: a
@@ -135,7 +136,7 @@ window.Datos = (function () {
       });
     },
 
-        /* NUEVA FUNCIÓN: Escribir en Supabase (matriz_estandar) */
+    /* Escribir en Supabase (matriz_estandar) */
     actualizarMatriz: async function (plaza_id, epp_id, accion) {
       const url = CFG.SUPABASE_URL + '/rest/v1/matriz_estandar';
       const headers = {
@@ -146,8 +147,6 @@ window.Datos = (function () {
       };
 
       if (accion === 'quitar_base') {
-        // DELETE: Lo saca del kit base. Al no estar en matriz_estandar, la vista 
-        // vw_matriz_adicional lo atrapará y lo mostrará en consumo adicional.
         const r = await fetch(url + '?plaza_id=eq.' + plaza_id + '&epp_id=eq.' + epp_id, {
           method: 'DELETE', headers: headers
         });
@@ -157,12 +156,11 @@ window.Datos = (function () {
       } 
       
       if (accion === 'hacer_base') {
-        // INSERT: Solo enviamos lo estrictamente necesario. Supabase llena el resto.
         const body = {
           plaza_id: plaza_id,
           epp_id: epp_id,
           requerido: true,
-          origen: 'manual' // Marcamos que fue agregado a mano
+          origen: 'manual'
         };
         const r = await fetch(url, {
           method: 'POST', headers: headers, body: JSON.stringify(body)
@@ -171,9 +169,8 @@ window.Datos = (function () {
         cache.delete('matriz');
         return true;
       }
-       if (accion === 'eliminar') {
-        // UPSERT con requerido: false. Esto lo oculta de la vista Base 
-        // y también lo saca de la vista Adicional (que busca los que son NULL).
+      
+      if (accion === 'eliminar') {
         const body = {
           plaza_id: plaza_id,
           epp_id: epp_id,
@@ -187,6 +184,61 @@ window.Datos = (function () {
         cache.delete('matriz');
         return true;
       }
+    },
+
+    /* --- NUEVAS FUNCIONES PARA EL CATÁLOGO DE EPPs --- */
+    
+    // Trae todos los EPPs activos de la vista de precios
+    catalogoEPPs: async function () {
+      const cs = await restAll('vw_epp_precio?select=*&order=descripcion.asc');
+      return cs.map(function (c) {
+        return {
+          m: c.material, d: c.descripcion, f: c.familia_codigo, fn: c.familia,
+          u: c.unidad, p: num(c.precio)
+        };
+      });
+    },
+
+    // Desactiva el EPP (no lo borra de la base de datos, solo lo oculta)
+    desactivarEPP: async function (material) {
+      const url = CFG.SUPABASE_URL + '/rest/v1/epp?material=eq.' + material;
+      const headers = {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      };
+      const body = { activo: false };
+
+      const r = await fetch(url, {
+        method: 'PATCH', headers: headers, body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error('Error al eliminar: ' + (await r.text()));
+      
+      // Limpiamos caché para que la matriz y los filtros se actualicen
+      cache.delete('columnas');
+      cache.delete('matriz');
+      return true;
+    }
+        ,
+
+    // Actualiza el precio de un EPP en Supabase
+    actualizarPrecio: async function (material, nuevo_precio) {
+      const url = CFG.SUPABASE_URL + '/rest/v1/precios?material=eq.' + material;
+      const headers = {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      };
+      const body = { precio: nuevo_precio };
+
+      const r = await fetch(url, {
+        method: 'PATCH', headers: headers, body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error('Error al actualizar precio: ' + (await r.text()));
+      
+      cache.delete('columnas');
+      cache.delete('matriz');
+      return true;
     }
   };
 })();
@@ -228,4 +280,5 @@ window.Util = (function () {
 
   return { soles: soles, num: num, color: color, esc: esc,
            mesCorto: mesCorto, mesBreve: mesBreve, COL: COL };
+           
 })();

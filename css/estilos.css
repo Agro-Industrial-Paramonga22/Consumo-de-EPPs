@@ -499,3 +499,24 @@ table.det td:first-child { text-align: left; font-variant-numeric: normal; }
   background: #fef2f2;
   color: #b91c1c;
 }
+/* --- Botón de eliminar en catálogo EPPs --- */
+.btn-eliminar-epp {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-eliminar-epp:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+.btn-eliminar-epp:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

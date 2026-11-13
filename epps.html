@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo de EPPs · Consumo de EPPs</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">EPP</div>
+    <div>
+      <h1>Catálogo de EPPs</h1>
+      <p>Administra los EPPs disponibles</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Matriz</a>
+    <a href="consumo.html">Consumo por puesto</a>
+    <a href="epps.html" class="activo">Catálogo EPPs</a>
+    <a href="actualizar.html">Actualizar datos</a>
+  </nav>
+</header>
+
+<main>
+  <div id="cargando" class="card cargando">
+    <div class="spinner"></div>
+    Cargando catálogo…
+  </div>
+
+  <div id="app" class="oculto">
+    <section class="card filtros" style="padding: 14px 18px; margin-bottom: 14px;">
+      <div class="f-group" style="flex: 1; max-width: 400px;">
+        <label for="f-buscar">Buscar EPP (Nombre o Código)</label>
+        <input type="search" id="f-buscar" placeholder="Ej: Guante, 600000...">
+      </div>
+    </section>
+
+    <div class="tabla-wrap" style="max-height:calc(100vh - 250px)">
+      <table class="consumo">
+        <thead>
+          <tr>
+            <th style="width: 130px; text-align: left;">Código</th>
+            <th style="text-align: left;">Descripción</th>
+            <th style="text-align: left;">Familia</th>
+            <th style="text-align: center;">Unidad</th>
+            <th style="text-align: right; width: 120px;">Precio (S/)</th>
+            <th style="text-align: center; width: 100px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-epps"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/epps.js"></script>
+</body>
+</html> 
