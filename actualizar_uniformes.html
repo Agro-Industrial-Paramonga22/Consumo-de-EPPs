@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Actualizar Uniformes</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" style="background:#8b5cf6;">UNI</div>
+    <div>
+      <h1>Actualizar Uniformes</h1>
+      <p>Sube el Maestro de Uniformes</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Matriz EPPs</a>
+    <a href="consumo.html">Consumo</a>
+    <a href="epps.html">Catálogo EPPs</a>
+    <a href="actualizar.html">Actualizar EPPs</a>
+    <a href="uniformes.html">Matriz Uniformes</a> <!-- Enlace a la futura matriz -->
+    <a href="consumo_uniformes.html">Consumo Uniformes</a> 
+    <a href="actualizar_uniformes.html" class="activo">Actualizar Uniformes</a>
+    
+  </nav>
+</header>
+
+<main>
+  <section class="card">
+    <h2 style="margin:0 0 6px;font-size:16px">Subir Maestro de Uniformes</h2>
+    <p style="margin:0 0 16px;color:#64748b;font-size:13px">
+      Sube el Excel que contiene las columnas <b>matnr</b>, <b>desc_art</b>, <b>PRECIO</b> y <b>desc_cargo</b>.
+    </p>
+
+    <div class="subir">
+      <label class="fila">
+        <span class="nom">Maestro de Uniformes</span>
+        <input type="file" id="f-uniformes" accept=".xlsx,.xls">
+        <span class="ok" id="ok-uniformes"></span>
+      </label>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:18px">
+      <button id="b-subir-uniformes" class="btn-primario" type="button">Actualizar Uniformes</button>
+      <span id="estado-uf" style="font-size:13px;color:#64748b"></span>
+    </div>
+  </section>
+
+  <section class="card" id="resultado-uf" style="display:none;margin-top:14px">
+    <h2 style="margin:0 0 10px;font-size:16px">Resultado</h2>
+    <div id="resumen-uf"></div>
+  </section>
+
+  <section class="card" id="problemas-uf" style="display:none;margin-top:14px;border-left:4px solid #dc2626">
+    <h2 style="margin:0 0 8px;font-size:15px;color:#b91c1c">No se actualizó nada</h2>
+    <ul id="lista-errores-uf" style="margin:0;padding-left:18px;font-size:13px;color:#7f1d1d"></ul>
+  </section>
+</main>
+
+<script src="js/vendor/xlsx.full.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/etl_uniformes.js"></script>
+<script src="js/actualizar_uniformes.js"></script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matriz de Uniformes</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" style="background:#8b5cf6;">UNI</div>
+    <div>
+      <h1>Matriz de Uniformes por Cargo</h1>
+      <p>Cargando…</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Matriz EPPs</a>
+    <a href="consumo.html">Consumo</a>
+    <a href="epps.html">Catálogo EPPs</a>
+    <a href="actualizar.html">Actualizar EPPs</a>
+    <a href="uniformes.html" class="activo">Matriz Uniformes</a>
+    <a href="consumo_uniformes.html">Consumo Uniformes</a> 
+    <a href="actualizar_uniformes.html">Actualizar Uniformes</a>
+  </nav>
+</header>
+
+<main>
+  <div id="cargando" class="card cargando">
+    <div class="spinner"></div>
+    Cargando datos…
+  </div>
+
+  <div id="app" class="oculto">
+    
+    <!-- FILTROS -->
+    <section class="card filtros">
+      <div class="f-group" style="flex:1; max-width: 300px;">
+        <label for="uf-buscar">Buscar Cargo</label>
+        <input type="search" id="uf-buscar" placeholder="Escribe el nombre del cargo...">
+      </div>
+      
+      <div class="f-group" style="flex-direction: row; align-items: center; gap: 16px; margin-left: auto;">
+        <button id="uf-btn-fullscreen" class="btn-exportar-verde" type="button" style="background:#fff; color:#0f172a; border-color:#cbd5e1;">
+          ⛶ Pantalla Completa
+        </button>
+        <button id="uf-b-limpiar" class="btn-limpiar" type="button">Limpiar filtros</button>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="kpis">
+      <div class="kpi">
+        <div class="kpi-icon" style="background:#f3e8ff; color:#8b5cf6;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Cargos Mostrados</div>
+          <div class="val" id="uf-k-cargos">—</div>
+          <div class="sub">con uniformes asignados</div>
+        </div>
+      </div>
+      
+      <div class="kpi">
+        <div class="kpi-icon" style="background:#f3e8ff; color:#8b5cf6;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Prendas en Catálogo</div>
+          <div class="val" id="uf-k-prendas">—</div>
+          <div class="sub">disponibles para asignar</div>
+        </div>
+      </div>
+
+      <div class="kpi destacado" style="border-color:#d8b4fe; background: linear-gradient(160deg, #fff 0%, #faf5ff 100%);">
+        <div class="kpi-icon" style="background:#f3e8ff; color:#8b5cf6;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Costo Total</div>
+          <div class="val" id="uf-k-costo" style="color:#8b5cf6;">—</div>
+          <div class="sub">suma de los uniformes</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABLA MATRIZ -->
+    <div class="tabla-wrap" id="uf-tabla-wrap">
+      <table class="matriz" id="matriz-uniformes">
+        <colgroup id="uf-matriz-colgroup"></colgroup>
+        <thead id="uf-matriz-head"></thead>
+        <tbody id="uf-matriz-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pie">
+      <div class="leyenda">
+        <span><span class="muestra" style="background:#8b5cf6"></span> Uniforme asignado al cargo</span>
+      </div>
+      <div id="uf-contador" style="color:#94a3b8"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- panel lateral -->
+<aside class="drawer" id="drawer">
+  <button class="cerrar" id="b-cerrar" title="Cerrar">✕</button>
+  <div class="drawer-h">
+    <h2 id="d-titulo"></h2>
+    <p id="d-sub"></p>
+  </div>
+  <div class="drawer-b" id="d-cuerpo"></div>
+</aside>
+
+<script src="js/config.js"></script>
+<script src="js/data_uniformes.js"></script>
+<script src="js/uniformes.js"></script>
+</body>
+</html>

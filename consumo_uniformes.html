@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consumo de Uniformes</title>
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" style="background:#8b5cf6;">UNI</div>
+    <div>
+      <h1>Consumo de Uniformes por Persona</h1>
+      <p>Cargando…</p>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Matriz EPPs</a>
+    <a href="consumo.html">Consumo EPPs</a>
+    <a href="epps.html">Catálogo EPPs</a>
+    <a href="actualizar.html">Actualizar EPPs</a>
+    <a href="uniformes.html">Matriz Uniformes</a>
+    <a href="consumo_uniformes.html" class="activo">Consumo Uniformes</a>
+    <a href="actualizar_uniformes.html">Actualizar Uniformes</a>
+    
+  </nav>
+</header>
+
+<main>
+  <div id="cargando" class="card cargando">
+    <div class="spinner"></div>
+    Cargando datos…
+  </div>
+
+  <div id="app" class="oculto">
+    
+    <section class="card filtros">
+      <div class="f-group" style="flex:1; max-width: 300px;">
+        <label for="f-buscar">Buscar Trabajador</label>
+        <input type="search" id="f-buscar" placeholder="Escribe el nombre...">
+      </div>
+      
+      <div class="f-group">
+        <label for="f-anio">Año</label>
+        <select id="f-anio">
+          <option value="">Todos los años</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+      </div>
+
+      <div class="f-group" style="flex-direction: row; align-items: center; margin-left: auto;">
+        <button id="b-limpiar" class="btn-limpiar" type="button">Limpiar filtros</button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi">
+        <div class="kpi-icon" style="background:#f3e8ff; color:#8b5cf6;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Personas Mostradas</div>
+          <div class="val" id="k-personas">—</div>
+          <div class="sub">con uniforme registrado</div>
+        </div>
+      </div>
+      
+      <div class="kpi destacado" style="border-color:#d8b4fe; background: linear-gradient(160deg, #fff 0%, #faf5ff 100%);">
+        <div class="kpi-icon" style="background:#f3e8ff; color:#8b5cf6;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="lbl">Costo Total del Filtro</div>
+          <div class="val" id="k-total" style="color:#8b5cf6;">—</div>
+          <div class="sub">valorizado a precio de catálogo</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="tabla-wrap" style="max-height:calc(100vh - 320px)">
+      <table class="consumo">
+        <thead>
+          <tr>
+            <th style="text-align:left; min-width: 300px;">Trabajador / Cargo</th>
+            <th style="text-align:center; width: 150px;">Fecha Registro</th>
+            <th style="text-align:right; width: 150px;">Costo Total (S/)</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo"></tbody>
+      </table>
+    </div>
+
+    <div class="pie">
+      <div class="leyenda" style="color:#94a3b8">
+        <span>Clic en una persona para ver el detalle de sus uniformes</span>
+      </div>
+      <div id="contador" style="color:#94a3b8"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- panel lateral -->
+<aside class="drawer" id="drawer">
+  <button class="cerrar" id="b-cerrar" title="Cerrar">✕</button>
+  <div class="drawer-h">
+    <h2 id="d-titulo"></h2>
+    <p id="d-sub"></p>
+  </div>
+  <div class="drawer-b" id="d-cuerpo"></div>
+</aside>
+
+<script src="js/config.js"></script>
+<script src="js/data_uniformes.js"></script>
+<script src="js/consumo_uniformes.js"></script>
+</body>
+</html>
