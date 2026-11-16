@@ -244,6 +244,9 @@ window.ETL = (function () {
       const iCDesc = col(con.headers, [h => h.includes('DESCRIPCION')], 2);
       const iCan = requerida('Cantid.reducidas (Consumo)', col(con.headers, [h => h.startsWith('CANTID')], 3), errores);
       const iCUni = col(con.headers, [h => h.startsWith('UNIDAD')], 4);
+      // NUEVO: Leer las columnas de control
+      const iPosBorrada = col(con.headers, [h => h.includes('POSICION BORRADA')], -1);
+      const iSalFinal = col(con.headers, [h => h.includes('SALIDA FINAL')], -1);
       
       const iCDni = requerida('DNI o Dest.mercancía (Consumo)', col(con.headers, [
         h => h === 'DNI', 
@@ -268,11 +271,24 @@ window.ETL = (function () {
         out.precios = out.precios || [];
       }
 
-      con.rows.forEach(r => {
+            con.rows.forEach(r => {
         const mat = texto(r[iCMat]);
         if (!mat) return;
+        
         const fecha = fechaISO(r[iFec]);
         if (!fecha) return;
+
+        // --- FILTRO DE SEGURIDAD ---
+        const posBorrada = iPosBorrada >= 0 ? texto(r[iPosBorrada]).toUpperCase() : '';
+        const salidaFinal = iSalFinal >= 0 ? texto(r[iSalFinal]).toUpperCase() : '';
+
+        // Si tiene una X en "Posición borrada", se ignora por completo.
+        if (posBorrada === 'X') return; 
+        
+        // Si no tiene una X en "Salida final", significa que no salió del almacén. Se ignora.
+        if (salidaFinal !== 'X') return;
+        // ---------------------------
+        
         usados.add(mat);
 
         const desc = (iCDesc >= 0 ? texto(r[iCDesc]) : '') || 'SIN DESCRIPCIÓN';
