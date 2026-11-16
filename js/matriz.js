@@ -23,7 +23,7 @@
     puesto: '',
     fams: new Set(),
     vacias: true,     // mostrar plazas sin ningún consumo
-    orden: 'total'    // 'total' (mayor costo primero) | 'puesto' (alfabético)
+    orden: 'puesto'    // 'total' (mayor costo primero) | 'puesto' (alfabético)
   };
 
   const $ = function (id) { return document.getElementById(id); };
@@ -180,7 +180,7 @@
         '<col style="width:104px">';
     }
 
-    $('matriz-head').innerHTML =
+        $('matriz-head').innerHTML =
       '<tr><th class="col-fija"><div class="th-puesto">Puesto de trabajo · lugar</div></th>' +
       th +
       '<th class="col-total" id="th-total" style="cursor:pointer" title="Clic para cambiar el orden">' +
