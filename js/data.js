@@ -85,40 +85,39 @@ window.Datos = (function () {
       });
     },
 
-    /* Filas de la matriz: plaza + kit base + consumo adicional */
-    matriz: function () {
-      return una('matriz', async function () {
-        const r = await Promise.all([
-          restAll('vw_costo_plaza?select=plaza_id,puesto,ceco_desc,personas,costo_kit,seccion'),
-          restAll('vw_consumo_plaza?select=plaza_id,personas'),
-          restAll('vw_matriz_detalle?select=plaza_id,epp_id,cobertura_pct'),
-          restAll('vw_matriz_adicional?select=plaza_id,material,cobertura_pct,motivo')
-        ]);
-        const consumidores = new Map(r[1].map(function (x) { return [x.plaza_id, x.personas]; }));
-        const base = new Map();
-        r[2].forEach(function (c) {
-          if (!base.has(c.plaza_id)) base.set(c.plaza_id, []);
-          base.get(c.plaza_id).push([c.epp_id, num(c.cobertura_pct)]);
-        });
-        const adic = new Map();
-        r[3].forEach(function (c) {
-          if (!adic.has(c.plaza_id)) adic.set(c.plaza_id, []);
-          adic.get(c.plaza_id).push([c.material, num(c.cobertura_pct), c.motivo]);
-        });
-
-        return r[0].map(function (p) {
-          const v = (base.get(p.plaza_id) || []).slice().sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
-          const a = (adic.get(p.plaza_id) || []).slice().sort(function (x, y) { return x[1] - y[1]; });
-          return {
-            id: p.plaza_id,
-            area: p.seccion || 'Sin Área',
-            p: p.puesto, 
-            l: p.ceco_desc || '(sin centro de costo)',
-            n: consumidores.get(p.plaza_id) || 0,
-            v: v, t: num(p.costo_kit), a: a
-          };
-        }).sort(function (a, b) { return a.p.localeCompare(b.p) || a.l.localeCompare(b.l); });
+        /* Filas de la matriz: plaza + kit base + consumo adicional */
+    matriz: async function () {
+      // NOTA: Quitamos el "una('matriz', ...)" para que SIEMPRE traiga datos frescos de Supabase
+      const r = await Promise.all([
+        restAll('vw_costo_plaza?select=plaza_id,puesto,ceco_desc,personas,costo_kit,seccion'),
+        restAll('vw_consumo_plaza?select=plaza_id,personas'),
+        restAll('vw_matriz_detalle?select=plaza_id,epp_id,cobertura_pct'),
+        restAll('vw_matriz_adicional?select=plaza_id,material,cobertura_pct,motivo')
+      ]);
+      const consumidores = new Map(r[1].map(function (x) { return [x.plaza_id, x.personas]; }));
+      const base = new Map();
+      r[2].forEach(function (c) {
+        if (!base.has(c.plaza_id)) base.set(c.plaza_id, []);
+        base.get(c.plaza_id).push([c.epp_id, num(c.cobertura_pct)]);
       });
+      const adic = new Map();
+      r[3].forEach(function (c) {
+        if (!adic.has(c.plaza_id)) adic.set(c.plaza_id, []);
+        adic.get(c.plaza_id).push([c.material, num(c.cobertura_pct), c.motivo]);
+      });
+
+      return r[0].map(function (p) {
+        const v = (base.get(p.plaza_id) || []).slice().sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+        const a = (adic.get(p.plaza_id) || []).slice().sort(function (x, y) { return x[1] - y[1]; });
+        return {
+          id: p.plaza_id,
+          area: p.seccion || 'Sin Área',
+          p: p.puesto, 
+          l: p.ceco_desc || '(sin centro de costo)',
+          n: consumidores.get(p.plaza_id) || 0,
+          v: v, t: num(p.costo_kit), a: a
+        };
+      }).sort(function (a, b) { return a.p.localeCompare(b.p) || a.l.localeCompare(b.l); });
     },
 
         /* Consumo real por persona (pantalla 2) */
