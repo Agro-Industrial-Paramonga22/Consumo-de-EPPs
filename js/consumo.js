@@ -62,7 +62,16 @@
   }
 
   function pintarFiltros() {
-    const areas = Array.from(new Set(PERSONAS.map(function (p) { return p.area; }))).sort();
+        // 1. Llenar el selector de Áreas (FILTRANDO BASURA)
+    const areas = Array.from(new Set(PERSONAS.map(function (p) { return p.area; })))
+      .filter(function (a) {
+        // Si el área es nula, vacía, o es puro número (ej. "600"), la ocultamos
+        if (!a || a === '(sin lugar de trabajo)') return false;
+        if (/^\d+$/.test(a.trim())) return false; 
+        return true;
+      })
+      .sort();
+      
     $('f-area').innerHTML = '<option value="">Todas</option>' +
       areas.map(function (a) {
         return '<option value="' + U.esc(a) + '">' + U.esc(a) + '</option>';

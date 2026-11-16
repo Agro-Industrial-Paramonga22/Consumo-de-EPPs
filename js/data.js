@@ -1,7 +1,5 @@
 /* ============================================================
    CONTROL DE VERSIÓN AUTOMÁTICO
-   Cambia este número (ej. '1.0.1', '1.0.2') cada vez que subas 
-   una actualización al repositorio para limpiar la caché sola.
    ============================================================ */
 (function() {
   const APP_VERSION = '1.0.2'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
@@ -14,21 +12,14 @@
     localStorage.setItem('epp_app_version', APP_VERSION); // Guarda la nueva versión
   }
 })();
+
 /* ============================================================
    Capa de datos — Supabase
-   ------------------------------------------------------------
-   Lee directo de las vistas del proyecto (db/schema.sql):
-     vw_meta, vw_epp_base, vw_costo_plaza, vw_consumo_plaza,
-     vw_matriz_detalle, vw_matriz_adicional, vw_consumo_persona
-
-     La web usa Datos.meta(), Datos.columnas(), Datos.matriz(),
-   Datos.consumo(), Datos.actualizarMatriz(), Datos.catalogoEPPs(),
-   Datos.desactivarEPP(), Datos.actualizarPrecio() y Datos.agregarEPP().
    ============================================================ */
 
 window.Datos = (function () {
   const CFG = window.EPP_CONFIG || {};
-  const PAGE = 5000;                 // Supabase corta en 1000 filas por request
+  const PAGE = 5000;
   const cache = new Map();
 
   function num(v) { return v == null || v === '' ? 0 : Number(v); }
@@ -85,9 +76,8 @@ window.Datos = (function () {
       });
     },
 
-        /* Filas de la matriz: plaza + kit base + consumo adicional */
+    /* Filas de la matriz: plaza + kit base + consumo adicional */
     matriz: async function () {
-      // NOTA: Quitamos el "una('matriz', ...)" para que SIEMPRE traiga datos frescos de Supabase
       const r = await Promise.all([
         restAll('vw_costo_plaza?select=plaza_id,puesto,ceco_desc,personas,costo_kit,seccion'),
         restAll('vw_consumo_plaza?select=plaza_id,personas'),
@@ -120,22 +110,11 @@ window.Datos = (function () {
       }).sort(function (a, b) { return a.p.localeCompare(b.p) || a.l.localeCompare(b.l); });
     },
 
-        /* Consumo real por persona (pantalla 2) */
-        /* Consumo real por persona (pantalla 2) */
+    /* Consumo real por persona (pantalla 2) - SIN LOCALSTORAGE */
     consumo: function () {
       return una('consumo', async function () {
         
-        // 1. Intentar leer de la caché del navegador
-        const cacheGuardado = localStorage.getItem('epp_cache_consumo');
-        if (cacheGuardado) {
-          try {
-            return JSON.parse(cacheGuardado);
-          } catch (e) {
-            console.warn('Error leyendo caché, se descargará de nuevo', e);
-          }
-        }
-
-        // 2. Si no hay caché, descargar de Supabase
+        // Descargar directamente de Supabase (sin caché manual)
         const lineas = await restAll('vw_consumo_persona_agrupado?select=*');
         const por = new Map();
         
@@ -160,24 +139,16 @@ window.Datos = (function () {
           it.meses[mes] = Math.round(((it.meses[mes] || 0) + val) * 100) / 100;
         });
 
-        const resultado = Array.from(por.values()).map(function (o) {
+        return Array.from(por.values()).map(function (o) {
           o.items = Object.values(o.items).sort(function (a, b) { return b.v - a.v; })
             .map(function (it) {
               return { m: it.m, c: Math.round(it.c * 100) / 100, v: it.v, meses: it.meses };
             });
           return o;
         });
-
-        // 3. Guardar en la caché para futuras visitas
-        try {
-          localStorage.setItem('epp_cache_consumo', JSON.stringify(resultado));
-        } catch (e) {
-          console.warn('El navegador no tiene espacio para caché', e);
-        }
-
-        return resultado;
       });
     },
+
     /* Escribir en Supabase (matriz_estandar) */
     actualizarMatriz: async function (plaza_id, epp_id, accion) {
       const url = CFG.SUPABASE_URL + '/rest/v1/matriz_estandar';
@@ -297,7 +268,7 @@ window.Datos = (function () {
       return true;
     },
 
-    /* --- NUEVAS FUNCIONES (Paso 3) --- */
+    /* --- NUEVAS FUNCIONES --- */
     
     reactivarEPP: async function (material) {
       const url = CFG.SUPABASE_URL + '/rest/v1/epp?material=eq.' + material;
@@ -320,7 +291,7 @@ window.Datos = (function () {
       return cs.map(c => ({ m: c.material, d: c.descripcion, u: c.unidad }));
     },
 
-        reconciliarDnis: async function () {
+    reconciliarDnis: async function () {
       const r = await fetch(CFG.SUPABASE_URL + '/rest/v1/rpc/reconciliar_dnis_huerfanos', {
         method: 'POST',
         headers: {
@@ -333,13 +304,11 @@ window.Datos = (function () {
       cache.delete('consumo');
       cache.delete('matriz');
       
-      // Leemos la respuesta de Supabase (que es el número de filas actualizadas)
       const actualizados = await r.json();
       return actualizados;
     }
   };
 })();
-
 
 window.Util = (function () {
   const COL = {
