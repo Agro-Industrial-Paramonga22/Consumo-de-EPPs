@@ -4,7 +4,7 @@
    una actualización al repositorio para limpiar la caché sola.
    ============================================================ */
 (function() {
-  const APP_VERSION = '1.0.1'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
+  const APP_VERSION = '1.0.2'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
   
   const versionGuardada = localStorage.getItem('epp_app_version');
   

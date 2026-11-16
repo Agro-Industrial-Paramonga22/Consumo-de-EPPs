@@ -78,25 +78,15 @@
     $('k-costo-sub').textContent = 'suma de las ' + totalPlazas + ' plazas';
   }
 
+  /* ---------------- FUNCIONES DE PANTALLA COMPLETA ---------------- */
     /* ---------------- FUNCIONES DE PANTALLA COMPLETA ---------------- */
   function pintarFullscreen() {
     const btn = $('btn-fullscreen');
     const tablaWrap = document.querySelector('.tabla-wrap');
 
-    // Activar pantalla completa
+    // Solo activamos el botón para entrar a pantalla completa
     btn.addEventListener('click', () => {
       tablaWrap.classList.add('fullscreen');
-    });
-
-    // Salir con la tecla ESC (y cerrar el panel lateral si está abierto)
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (tablaWrap.classList.contains('fullscreen')) {
-          tablaWrap.classList.remove('fullscreen');
-        }
-        // Si el panel de detalle está abierto, también lo cerramos
-        cerrarDetalle(); 
-      }
     });
   }
 
@@ -492,13 +482,41 @@
     abrirDetalle(filaActualizada);
   }
 
-  function cerrarDetalle() { $('drawer').classList.remove('abierto'); }
+    function cerrarDetalle() { 
+    $('drawer').classList.remove('abierto'); 
+    // Limpiamos cualquier menú flotante que haya quedado huérfano
+    document.querySelectorAll('.popover-epp').forEach(el => el.remove());
+  }
 
-  document.addEventListener('DOMContentLoaded', function () {
+   document.addEventListener('DOMContentLoaded', function () {
     $('b-cerrar').addEventListener('click', cerrarDetalle);
+    
+    // --- NUEVA LÓGICA DE ESCAPE (CAPA POR CAPA) ---
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') cerrarDetalle();
+      if (e.key === 'Escape') {
+        
+        // Capa 1: Si hay un menú flotante (Mover/Eliminar) abierto, lo cierra primero
+        const popoverAbierto = document.querySelector('.popover-epp');
+        if (popoverAbierto) {
+          popoverAbierto.remove();
+          return; // Se detiene aquí y no cierra el panel
+        }
+
+        // Capa 2: Si el panel lateral está abierto, lo cierra
+        const drawer = $('drawer');
+        if (drawer.classList.contains('abierto')) {
+          cerrarDetalle();
+          return;
+        }
+
+        // Capa 3: Si está en pantalla completa, sale de ella
+        const tablaWrap = document.querySelector('.tabla-wrap');
+        if (tablaWrap.classList.contains('fullscreen')) {
+          tablaWrap.classList.remove('fullscreen');
+        }
+      }
     });
+
     init();
   });
 })();
