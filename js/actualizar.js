@@ -123,13 +123,19 @@
 
       const res = await subirEnLotes(r.payload);
       
-      // --- RECONCILIACIÓN AUTOMÁTICA SILENCIOSA ---
+            // --- RECONCILIACIÓN AUTOMÁTICA SILENCIOSA ---
       let mensajeReconciliacion = '';
-      if (archivo('f-mae')) {
+       if (archivo('f-mae') || archivo('f-servicios')) {
         $('estado').textContent = 'Actualizando y vinculando DNIs automáticamente...';
         try {
-          await Datos.reconciliarDnis();
-          mensajeReconciliacion = '<tr><td colspan="2" style="padding-top:10px; font-weight:bold; color:#059669;">✨ DNIs Huérfanos actualizados automáticamente al nuevo MAE.</td></tr>';
+          // Capturamos el número que devuelve data.js
+          const cantidadIdentificados = await Datos.reconciliarDnis();
+          
+          if (cantidadIdentificados > 0) {
+            mensajeReconciliacion = `<tr><td colspan="2" style="padding-top:10px; font-weight:bold; color:#059669;">✨ Se identificaron y vincularon <b>${cantidadIdentificados}</b> consumos nuevos al MAE.</td></tr>`;
+          } else {
+            mensajeReconciliacion = '<tr><td colspan="2" style="padding-top:10px; font-weight:bold; color:#059669;">✨ MAE procesado. No había DNIs pendientes por vincular.</td></tr>';
+          }
         } catch (e) {
           console.warn('No se pudo reconciliar automáticamente:', e);
           mensajeReconciliacion = '<tr><td colspan="2" style="color:#b91c1c;">No se pudo reconciliar DNIs automáticamente. Intenta de nuevo.</td></tr>';
@@ -176,7 +182,7 @@
       $('resumen').innerHTML = htmlResumen;
       $('resultado').style.display = 'block';
       $('estado').textContent = 'Listo. Proceso completado.';
-      sessionStorage.removeItem('epp_cache_consumo');
+      localStorage.removeItem('epp_cache_consumo');
     } catch (e) {
       errores([String(e.message || e)]);
     } finally {

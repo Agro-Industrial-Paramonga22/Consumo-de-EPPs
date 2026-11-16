@@ -407,23 +407,67 @@
     }, 10);
   }
 
-  window.ejecutarMovimiento = async function(epp_id, accion) {
+    window.ejecutarMovimiento = async function(epp_id, accion) {
     if (!FILA_ACTUAL) return;
     document.querySelectorAll('.popover-epp').forEach(el => el.remove());
     
     try {
+      // 1. Guardamos en Supabase (en segundo plano)
       await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, accion);
-      await refrescarDatos();
+      
+      // 2. ACTUALIZAMOS LA MEMORIA LOCAL SIN VOLVER A DESCARGAR TODO
+      if (accion === 'quitar_base') {
+          FILA_ACTUAL.v = FILA_ACTUAL.v.filter(p => p[0] !== epp_id);
+      } else if (accion === 'hacer_base') {
+          if (FILA_ACTUAL.a) FILA_ACTUAL.a = FILA_ACTUAL.a.filter(p => p[0] !== epp_id);
+          if (!FILA_ACTUAL.v.some(p => p[0] === epp_id)) FILA_ACTUAL.v.push([epp_id, 100]);
+      } else if (accion === 'eliminar') {
+          FILA_ACTUAL.v = FILA_ACTUAL.v.filter(p => p[0] !== epp_id);
+          if (FILA_ACTUAL.a) FILA_ACTUAL.a = FILA_ACTUAL.a.filter(p => p[0] !== epp_id);
+      }
+      
+      // 3. Recalculamos el costo total del kit localmente
+      let nuevoTotal = 0;
+      FILA_ACTUAL.v.forEach(p => {
+          const col = porMaterial.get(p[0]);
+          if (col) nuevoTotal += col.p;
+      });
+      FILA_ACTUAL.t = nuevoTotal;
+      
+      // 4. Actualizamos la fila en la lista global y repintamos
+      const idx = FILAS.findIndex(f => f.id === FILA_ACTUAL.id);
+      if (idx !== -1) FILAS[idx] = FILA_ACTUAL;
+      
+      render(); 
+      abrirDetalle(FILA_ACTUAL); 
+      
     } catch (e) {
       alert('Error al guardar en Supabase: ' + e.message);
     }
   };
 
-  window.agregarEppManual = async function(epp_id) {
+    window.agregarEppManual = async function(epp_id) {
     if (!FILA_ACTUAL) return;
     try {
       await Datos.actualizarMatriz(FILA_ACTUAL.id, epp_id, 'hacer_base', 1);
-      await refrescarDatos();
+      
+      // Actualización local instantánea
+      if (!FILA_ACTUAL.v.some(p => p[0] === epp_id)) {
+          FILA_ACTUAL.v.push([epp_id, 100]);
+          const col = porMaterial.get(epp_id);
+          if (col) FILA_ACTUAL.t += col.p;
+      }
+      
+      const idx = FILAS.findIndex(f => f.id === FILA_ACTUAL.id);
+      if (idx !== -1) FILAS[idx] = FILA_ACTUAL;
+      
+      render(); 
+      abrirDetalle(FILA_ACTUAL);
+      
+      // Cerrar el buscador si estaba abierto
+      $('buscador-epp').classList.add('oculto');
+      $('input-buscar-epp').value = '';
+      
     } catch (e) {
       alert('Error al agregar: ' + e.message);
     }

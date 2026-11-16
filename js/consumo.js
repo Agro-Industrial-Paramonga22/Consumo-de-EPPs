@@ -11,14 +11,12 @@
 
   const $ = function (id) { return document.getElementById(id); };
 
-  async function init() {
-    // Pintar pantalla de inmediato
+    async function init() {
     $('app').classList.remove('oculto');
     $('cargando').classList.add('oculto');
 
-    // Mensaje de carga inicial si no hay caché
-    if (!sessionStorage.getItem('epp_cache_consumo')) {
-      $('cuerpo').innerHTML = '<tr><td colspan="15" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos por primera vez... (esto puede tardar unos segundos)</td></tr>';
+    if (!localStorage.getItem('epp_cache_consumo')) {
+      $('cuerpo').innerHTML = '<tr><td colspan="15" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos...</td></tr>';
     }
 
     try {
@@ -28,7 +26,7 @@
       
       pintarFiltros();
       
-      // Cargar el consumo (lee de caché o de Supabase)
+      // Al leer de la nueva vista, ya vienen limpios (solo con DNI)
       PERSONAS = await Datos.consumo();
 
       const mesesSet = new Set();
@@ -44,19 +42,16 @@
           U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
           ' · ' + PERSONAS.length + ' personas con consumo';
           
-        // --- OPCIÓN A: SELECCIONAR EL AÑO MÁS RECIENTE POR DEFECTO ---
         const aniosDisponibles = Array.from(new Set(META.meses.map(m => m.split('-')[0]))).sort().reverse();
         if (aniosDisponibles.length > 0) {
-          st.anio = aniosDisponibles[0]; // Toma el año más reciente (ej. "2026")
-          st.meses = []; // Limpiamos los meses para que muestre todos los del año
+          st.anio = aniosDisponibles[0]; 
+          st.meses = []; 
         }
-        // -------------------------------------------------------------
-
       } else {
         document.querySelector('.brand p').textContent = 'Sin datos de consumo';
       }
 
-      pintarFiltros(); // Volvemos a pintar para que el selector de año se marque
+      pintarFiltros();
       render();
 
     } catch (e) {

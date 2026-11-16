@@ -12,7 +12,7 @@
 
 window.Datos = (function () {
   const CFG = window.EPP_CONFIG || {};
-  const PAGE = 1000;                 // Supabase corta en 1000 filas por request
+  const PAGE = 5000;                 // Supabase corta en 1000 filas por request
   const cache = new Map();
 
   function num(v) { return v == null || v === '' ? 0 : Number(v); }
@@ -111,7 +111,7 @@ window.Datos = (function () {
       return una('consumo', async function () {
         
         // 1. Intentar leer de la caché del navegador
-        const cacheGuardado = sessionStorage.getItem('epp_cache_consumo');
+        const cacheGuardado = localStorage.getItem('epp_cache_consumo');
         if (cacheGuardado) {
           try {
             return JSON.parse(cacheGuardado);
@@ -155,7 +155,7 @@ window.Datos = (function () {
 
         // 3. Guardar en la caché para futuras visitas
         try {
-          sessionStorage.setItem('epp_cache_consumo', JSON.stringify(resultado));
+          localStorage.setItem('epp_cache_consumo', JSON.stringify(resultado));
         } catch (e) {
           console.warn('El navegador no tiene espacio para caché', e);
         }
@@ -305,7 +305,7 @@ window.Datos = (function () {
       return cs.map(c => ({ m: c.material, d: c.descripcion, u: c.unidad }));
     },
 
-    reconciliarDnis: async function () {
+        reconciliarDnis: async function () {
       const r = await fetch(CFG.SUPABASE_URL + '/rest/v1/rpc/reconciliar_dnis_huerfanos', {
         method: 'POST',
         headers: {
@@ -317,7 +317,10 @@ window.Datos = (function () {
       if (!r.ok) throw new Error('Error al reconciliar: ' + (await r.text()));
       cache.delete('consumo');
       cache.delete('matriz');
-      return true;
+      
+      // Leemos la respuesta de Supabase (que es el número de filas actualizadas)
+      const actualizados = await r.json();
+      return actualizados;
     }
   };
 })();

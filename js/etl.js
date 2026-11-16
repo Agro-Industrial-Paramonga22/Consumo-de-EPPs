@@ -162,6 +162,7 @@ window.ETL = (function () {
         const g = texto(r[iArea]);
         const s = texto(r[iSec]);
         const cod = texto(r[iCen]);
+        if (cod && !/^\d+$/.test(cod)) return;
         const desc = texto(r[iCenDesc]) || '(sin centro de costo)';
         gerencias.add(g);
         if (!secciones.has(s)) secciones.set(s, g);
@@ -185,7 +186,7 @@ window.ETL = (function () {
         const dni = (texto(r[iDoc]).match(/\d{8}/) || [''])[0];
         if (!dni) return;
         const lugar = texto(r[iLug]) || '(sin lugar de trabajo)';
-        const ceco = descACodigo.get(lugar) || ('SRV-' + norm(lugar).toLowerCase().replace(/ /g, '-').slice(0, 40));
+        const ceco = descACodigo.get(lugar) || ''; 
         gerencias.add('SERVICIOS');
         if (!secciones.has(lugar)) secciones.set(lugar, 'SERVICIOS');
         if (!centros.has(ceco)) centros.set(ceco, { descripcion: lugar, seccion: lugar });
@@ -348,7 +349,7 @@ window.ETL = (function () {
     }
 
     /* ---- plazas ---- */
-    if (archivos.mae) {
+    if (archivos.mae || archivos.servicios) {
       out.gerencias = [];
       out.secciones = [];
       out.cecos = [];
