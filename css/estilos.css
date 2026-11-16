@@ -780,6 +780,11 @@ table.det td:first-child {
   position: sticky;
   left: 0;
   background: #fafcfb; /* Mismo fondo del detalle */
+  
+  /* NUEVAS REGLAS PARA EVITAR QUE EL TEXTO SE SALGA */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 table.det td:last-child {
   width: 120px;

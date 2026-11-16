@@ -109,13 +109,11 @@ window.ETL = (function () {
     let ok = 0, sinDni = 0, huerfano = 0;
 
     // --- MAGIA: Si no suben MAE, traer las personas existentes de Supabase ---
-       // --- MAGIA: Si no suben MAE, traer las personas existentes de Supabase ---
     if (!archivos.mae) {
       try {
         let offset = 0;
         let hasMore = true;
         while (hasMore) {
-          // Usamos la nueva vista que creamos en Supabase
           const resp = await fetch(window.EPP_CONFIG.SUPABASE_URL + '/rest/v1/vw_personas_maestro?select=*&limit=1000&offset=' + offset, {
             headers: {
               apikey: window.EPP_CONFIG.SUPABASE_KEY,
@@ -264,7 +262,6 @@ window.ETL = (function () {
 
       out.consumo = [];
       
-      // SOLO preparamos epp y precios si el usuario subió costos (Evita borrar precios)
       if (archivos.costos) {
         out.epp = out.epp || [];
         out.precios = out.precios || [];
@@ -322,6 +319,24 @@ window.ETL = (function () {
           dni: dni, ref_texto: ref, estado: estado
         });
       });
+
+      // --- NUEVO: AGRUPACIÓN DE CONSUMOS DUPLICADOS ---
+      // Esto evita el error de "violación de restricción única" en Supabase
+      const consumoAgrupado = new Map();
+      out.consumo.forEach(function(c) {
+        // Si hay DNI, usamos esa llave. Si no, le ponemos un random para que no se junten los "sin_dni"
+        const llave = c.dni ? (c.fecha + '|' + c.material + '|' + c.dni) : ('SIN_DNI_' + Math.random());
+        
+        if (consumoAgrupado.has(llave)) {
+          const existente = consumoAgrupado.get(llave);
+          // Sumamos las cantidades y redondeamos a 2 decimales
+          existente.cantidad = Math.round((existente.cantidad + c.cantidad) * 100) / 100;
+        } else {
+          consumoAgrupado.set(llave, { ...c }); 
+        }
+      });
+      out.consumo = Array.from(consumoAgrupado.values());
+      // ------------------------------------------------
 
       // Solo inyectamos materiales nuevos si subieron costos
       if (archivos.costos && materialesNuevos.size > 0) {
