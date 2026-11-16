@@ -11,14 +11,14 @@
 
   const $ = function (id) { return document.getElementById(id); };
 
-      async function init() {
-    // Mostrar la interfaz rápido
+  async function init() {
+    // Pintar pantalla de inmediato
     $('app').classList.remove('oculto');
     $('cargando').classList.add('oculto');
-    
-    // Si no hay caché, mostramos un mensaje de carga en la tabla
+
+    // Mensaje de carga inicial si no hay caché
     if (!sessionStorage.getItem('epp_cache_consumo')) {
-      $('cuerpo').innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos por primera vez... (esto puede tardar unos segundos)</td></tr>';
+      $('cuerpo').innerHTML = '<tr><td colspan="15" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos por primera vez... (esto puede tardar unos segundos)</td></tr>';
     }
 
     try {
@@ -28,7 +28,7 @@
       
       pintarFiltros();
       
-      // Esto leerá de la caché o de Supabase automáticamente
+      // Cargar el consumo (lee de caché o de Supabase)
       PERSONAS = await Datos.consumo();
 
       const mesesSet = new Set();
@@ -43,11 +43,20 @@
         document.querySelector('.brand p').textContent =
           U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
           ' · ' + PERSONAS.length + ' personas con consumo';
+          
+        // --- OPCIÓN A: SELECCIONAR EL AÑO MÁS RECIENTE POR DEFECTO ---
+        const aniosDisponibles = Array.from(new Set(META.meses.map(m => m.split('-')[0]))).sort().reverse();
+        if (aniosDisponibles.length > 0) {
+          st.anio = aniosDisponibles[0]; // Toma el año más reciente (ej. "2026")
+          st.meses = []; // Limpiamos los meses para que muestre todos los del año
+        }
+        // -------------------------------------------------------------
+
       } else {
         document.querySelector('.brand p').textContent = 'Sin datos de consumo';
       }
 
-      pintarFiltros();
+      pintarFiltros(); // Volvemos a pintar para que el selector de año se marque
       render();
 
     } catch (e) {
@@ -67,6 +76,9 @@
     const anios = Array.from(new Set(META.meses.map(m => m.split('-')[0]))).sort().reverse();
     $('f-anio').innerHTML = '<option value="">Todos los años</option>' +
       anios.map(a => `<option value="${a}">${a}</option>`).join('');
+      
+    // Asegurarnos de que el selector visualmente muestre el año que acabamos de seleccionar
+    $('f-anio').value = st.anio;
 
     function llenarMeses() {
       const dropMeses = $('ms-dropdown-meses');

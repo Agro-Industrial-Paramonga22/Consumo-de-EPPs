@@ -862,3 +862,54 @@ table.det td:last-child {
   height: 14px; 
   cursor: pointer; 
 }
+/* Botones de Zoom */
+.btn-zoom {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.btn-zoom:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: var(--accent);
+}
+.btn-zoom:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* --- MODO PANTALLA COMPLETA --- */
+.tabla-wrap.fullscreen {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  max-height: 100vh !important;
+  z-index: 9999;
+  background: #fff;
+  padding: 0; /* Eliminamos los bordes blancos */
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+/* EL TRUCO PARA QUE EL PANEL DE DETALLE SE VEA EN PANTALLA COMPLETA */
+/* Buscamos el drawer que esté justo después de la tabla en pantalla completa */
+body:has(.tabla-wrap.fullscreen) .drawer {
+  z-index: 10000; /* Lo ponemos por encima de la tabla en fullscreen */
+}
+
+/* Eliminamos el estilo del botón rojo que ya no usaremos */
+.btn-close-fullscreen {
+  display: none !important;
+}

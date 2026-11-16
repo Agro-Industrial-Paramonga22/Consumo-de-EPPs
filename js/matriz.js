@@ -11,6 +11,12 @@
   const porMaterial = new Map();
   let FILA_ACTUAL = null; // Variable para guardar la plaza que estamos viendo en el drawer
 
+  // --- NUEVAS VARIABLES PARA EL ZOOM ---
+  let currentZoom = 1;
+  const zoomStep = 0.1;
+  const maxZoom = 2.0;  // Máximo 200%
+  const minZoom = 0.5;  // Mínimo 50%
+
   const st = {
     area: '', 
     lugar: '',
@@ -43,6 +49,7 @@
 
     pintarKpis();
     pintarFiltros();
+    pintarFullscreen();
     pintarCabecera();
     render();
     $('app').classList.remove('oculto');
@@ -50,20 +57,17 @@
   }
 
   /* ---------------- KPIs ---------------- */
-    function pintarKpis() {
-    // Solo actualizamos el texto de la cabecera (los meses y el consumo global)
+  function pintarKpis() {
     document.querySelector('.brand p').textContent =
       U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
       ' · ' + U.soles(META.valor) + ' consumidos';
   }
 
-  // NUEVA FUNCIÓN: Recalcula los KPIs según los filtros
   function actualizarKpis(filas) {
     const totalPlazas = filas.length;
     const plazasConConsumo = filas.filter(f => f.v.length > 0).length;
     const costoTotal = filas.reduce((sum, f) => sum + f.t, 0);
     
-    // Contar cuántos EPPs únicos hay en las filas filtradas
     const eppsUnicos = new Set();
     filas.forEach(f => f.v.forEach(p => eppsUnicos.add(p[0])));
 
@@ -74,11 +78,33 @@
     $('k-costo-sub').textContent = 'suma de las ' + totalPlazas + ' plazas';
   }
 
-    function pintarFiltros() {
-    // Escuchar cambios en los selectores
+    /* ---------------- FUNCIONES DE PANTALLA COMPLETA ---------------- */
+  function pintarFullscreen() {
+    const btn = $('btn-fullscreen');
+    const tablaWrap = document.querySelector('.tabla-wrap');
+
+    // Activar pantalla completa
+    btn.addEventListener('click', () => {
+      tablaWrap.classList.add('fullscreen');
+    });
+
+    // Salir con la tecla ESC (y cerrar el panel lateral si está abierto)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (tablaWrap.classList.contains('fullscreen')) {
+          tablaWrap.classList.remove('fullscreen');
+        }
+        // Si el panel de detalle está abierto, también lo cerramos
+        cerrarDetalle(); 
+      }
+    });
+  }
+
+  /* ---------------- Filtros ---------------- */
+  function pintarFiltros() {
     $('f-area').addEventListener('change', function () { 
       st.area = this.value; 
-      st.puesto = ''; $('f-puesto').value = ''; // Reseteamos puesto al cambiar área
+      st.puesto = ''; $('f-puesto').value = ''; 
       actualizarSelectores(); 
       render(); 
     });
@@ -91,29 +117,25 @@
     actualizarSelectores();
   }
 
-  // Función que llena los selectores dependiendo del Área seleccionada
   function actualizarSelectores() {
     const selArea = $('f-area');
     if (selArea.options.length <= 1) {
-      const areas = Array.from(new Set(FILAS.map(f => f.area))).sort(); // <--- CAMBIAR f.a POR f.area
+      const areas = Array.from(new Set(FILAS.map(f => f.area))).sort();
       areas.forEach(a => {
         const o = document.createElement('option'); o.value = a; o.textContent = a; selArea.appendChild(o);
       });
     }
 
-    // 2. Filtrar las filas base
-    const filasFiltradasPorArea = st.area ? FILAS.filter(f => f.area === st.area) : FILAS; // <--- CAMBIAR f.a POR f.area
+    const filasFiltradasPorArea = st.area ? FILAS.filter(f => f.area === st.area) : FILAS;
 
-    // 3. Llenar el selector de Puestos
     const selPuesto = $('f-puesto');
     selPuesto.innerHTML = '<option value="">Todos</option>';
     const puestos = Array.from(new Set(filasFiltradasPorArea.map(f => f.p))).sort();
     puestos.forEach(p => {
       const o = document.createElement('option'); o.value = p; o.textContent = p; selPuesto.appendChild(o);
     });
-    selPuesto.value = st.puesto; // Mantener selección si aún existe
+    selPuesto.value = st.puesto;
 
-    // 4. Llenar el selector de Lugares (CECOs)
     const selLugar = $('f-lugar');
     selLugar.innerHTML = '<option value="">Todos</option>';
     const lugares = Array.from(new Set(filasFiltradasPorArea.map(f => f.l))).sort();
@@ -123,7 +145,7 @@
     selLugar.value = st.lugar;
   }
 
-     function limpiar() {
+  function limpiar() {
     st.area = ''; st.lugar = ''; st.puesto = '';
     st.vacias = true;
     $('f-area').value = ''; 
@@ -134,10 +156,9 @@
   }
 
   /* ---------------- cabecera de la tabla ---------------- */
-    function columnasVisibles() {
+  function columnasVisibles() {
     return COLS.filter(function (c) {
       if (c.n === 0) return false;              
-      // Se eliminó la validación de st.fams
       return true;
     });
   }
@@ -176,9 +197,9 @@
   }
 
   /* ---------------- cuerpo ---------------- */
-    function filasVisibles() {
+  function filasVisibles() {
     return FILAS.filter(function (f) {
-      if (st.area && f.area !== st.area) return false; // <--- CAMBIAR f.a POR f.area
+      if (st.area && f.area !== st.area) return false;
       if (st.lugar && f.l !== st.lugar) return false;
       if (st.puesto && f.p !== st.puesto) return false;
       if (!st.vacias && f.v.length === 0) return false;
@@ -186,11 +207,11 @@
     });
   }
 
-    function render() {
+  function render() {
     const cols = columnasVisibles();
     const filas = filasVisibles();
     
-    actualizarKpis(filas); // <--- ESTA LÍNEA HACE QUE LOS NÚMEROS SE ACTUALICEN AL FILTRAR
+    actualizarKpis(filas);
     pintarCabecera();          
 
     if (st.orden === 'total') {
@@ -238,7 +259,6 @@
       'Mostrando ' + filas.length + ' de ' + FILAS.length + ' plazas · ' +
       cols.length + ' EPPs';
 
-    // clic en una fila -> panel de detalle
     $('matriz-body').onclick = function (e) {
       const tr = e.target.closest('tr');
       if (!tr) return;
@@ -246,18 +266,16 @@
     };
   }
 
-   /* ---------------- panel de detalle ---------------- */
+  /* ---------------- panel de detalle ---------------- */
   function abrirDetalle(f) {
-    FILA_ACTUAL = f; // Guardamos la fila actual
+    FILA_ACTUAL = f; 
     const d = $('drawer');
     $('d-titulo').textContent = f.p;
     $('d-sub').textContent = f.l + ' · ' + (f.n || 0) + ' persona(s) con consumo en esta plaza';
 
     let html = '';
     
-    // --- PARTE 1: ÍTEMS DEL KIT BASE Y ADICIONALES ---
     if (f.v.length === 0) {
-      // Si está vacío, mostramos el mensaje pero NO cortamos la función
       html += '<div class="vacio">Esta plaza no tiene ningún consumo registrado con DNI.' +
               '<br><br>El kit está <b>pendiente de definir</b>.</div>';
     } else {
@@ -265,7 +283,6 @@
         return { c: porMaterial.get(p[0]), cob: p[1] };
       }).sort(function (a, b) { return b.c.p - a.c.p; });
 
-      // --- ÍTEMS DEL KIT BASE (Interactivos) ---
       html += items.map(function (it) {
         return '<div class="kit-item" data-epp="' + it.c.m + '" data-tipo="base">' +
           '<span class="pt" style="background:' + U.color(it.c.f) + '"></span>' +
@@ -275,13 +292,11 @@
       }).join('') +
       '<div class="kit-total"><span>Costo del kit base</span><span>' + U.soles(f.t) + '</span></div>';
 
-      // --- ÍTEMS ADICIONALES (Interactivos) ---
       if (f.a && f.a.length) {
         html += '<div style="margin-top:14px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em">' +
                 'Consumo adicional · fuera de la matriz</div>';
         html += f.a.map(function (p) {
           const c = porMaterial.get(p[0]);
-          // Validación por si el EPP adicional no está en la lista de columnas base
           if(!c) return ''; 
           return '<div class="kit-item" data-epp="' + c.m + '" data-tipo="adicional" style="opacity:.65">' +
             '<span class="pt" style="background:' + U.color(c.f) + '"></span>' +
@@ -297,7 +312,6 @@
       'y solo si lo usa la mayoría. Haz clic en un EPP para moverlo entre el Kit Base y el Consumo Adicional.</p>';
     }
 
-    // --- PARTE 2: BOTÓN PARA AGREGAR NUEVO EPP (SIEMPRE VISIBLE) ---
     html += '<div style="margin-top:16px; text-align:center;">' +
             '<button id="btn-add-epp" class="btn-exportar" style="width:100%">+ Agregar EPP al kit</button>' +
             '<div id="buscador-epp" class="oculto" style="margin-top:10px; position:relative;">' +
@@ -315,19 +329,16 @@
   function configurarEventosDrawer() {
     const cont = $('d-cuerpo');
 
-    // 1. Manejo de clics (Popover o Botón de Agregar)
     cont.onclick = function(e) {
       const item = e.target.closest('.kit-item');
       const btnAdd = e.target.closest('#btn-add-epp');
       
-      // Si hace clic en "+ Agregar EPP"
       if (btnAdd) {
         $('buscador-epp').classList.toggle('oculto');
         if(!$('buscador-epp').classList.contains('oculto')) $('input-buscar-epp').focus();
         return;
       }
 
-      // Si hace clic en un EPP de la lista
       if (item) {
         mostrarPopover(item, e);
       } else {
@@ -335,7 +346,6 @@
       }
     };
 
-    // 2. Buscador predictivo de EPPs
     const input = $('input-buscar-epp');
     if (input) {
       input.oninput = function() {
@@ -343,7 +353,6 @@
         const res = $('resultados-epp');
         if (q.length < 2) { res.innerHTML = ''; return; }
         
-        // Filtra el catálogo completo de EPPs (COLS)
         const matches = COLS.filter(c => c.d.toLowerCase().includes(q)).slice(0, 5);
         
         if(matches.length === 0) {
@@ -357,7 +366,6 @@
            </div>`
         ).join('');
         
-        // Evento clic para seleccionar del resultado
         res.querySelectorAll('.res-item').forEach(el => {
           el.onclick = () => window.agregarEppManual(el.dataset.id);
         });
@@ -365,8 +373,7 @@
     }
   }
 
-  // Muestra el menú flotante al hacer clic en un EPP
-   function mostrarPopover(item, event) {
+  function mostrarPopover(item, event) {
     document.querySelectorAll('.popover-epp').forEach(el => el.remove());
     
     const epp_id = item.dataset.epp;
@@ -385,7 +392,6 @@
       botones += `<button onclick="window.ejecutarMovimiento('${epp_id}', 'hacer_base')">Mover a kit base</button>`;
     }
     
-    // Agregamos el botón de eliminar
     botones += `<button class="btn-eliminar" onclick="window.ejecutarMovimiento('${epp_id}', 'eliminar')">Eliminar de la plaza</button>`;
     
     pop.innerHTML = botones;
@@ -401,8 +407,6 @@
     }, 10);
   }
 
-    // --- Funciones Globales para Supabase ---
-  
   window.ejecutarMovimiento = async function(epp_id, accion) {
     if (!FILA_ACTUAL) return;
     document.querySelectorAll('.popover-epp').forEach(el => el.remove());
@@ -425,28 +429,22 @@
     }
   };
 
-  // Función auxiliar para recargar la tabla y el drawer sin refrescar la página web
   async function refrescarDatos() {
     const todasLasFilas = await Datos.matriz();
-    // Buscamos la fila que teníamos abierta para actualizarla
     const filaActualizada = todasLasFilas.find(f => f.p === FILA_ACTUAL.p && f.l === FILA_ACTUAL.l);
     
-    // Volvemos a crear el mapa de EPPs
     filaActualizada._m = new Map();
     filaActualizada.v.forEach(p => filaActualizada._m.set(p[0], p[1]));
     
-    // Actualizamos el arreglo global FILAS
     const idx = FILAS.findIndex(f => f.p === FILA_ACTUAL.p && f.l === FILA_ACTUAL.l);
     if (idx !== -1) FILAS[idx] = filaActualizada;
     
-    // Repintamos todo
     render(); 
     abrirDetalle(filaActualizada);
   }
 
   function cerrarDetalle() { $('drawer').classList.remove('abierto'); }
 
-  /* ---------------- arranque ---------------- */
   document.addEventListener('DOMContentLoaded', function () {
     $('b-cerrar').addEventListener('click', cerrarDetalle);
     document.addEventListener('keydown', function (e) {

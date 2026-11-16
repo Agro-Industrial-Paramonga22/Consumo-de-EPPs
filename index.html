@@ -33,7 +33,7 @@
 
   <div id="app" class="oculto">
 
-           <section class="card filtros">
+    <section class="card filtros">
       <div class="f-group">
         <label for="f-area">Área</label>
         <select id="f-area"><option value="">Todas</option></select>
@@ -47,7 +47,14 @@
         <select id="f-puesto"><option value="">Todos</option></select>
       </div>
       
+      <!-- BARRA DE HERRAMIENTAS (Alineada a la derecha) -->
       <div class="f-group" style="flex-direction: row; align-items: center; gap: 16px; margin-left: auto;">
+        
+        <!-- BOTÓN DE PANTALLA COMPLETA -->
+        <button id="btn-fullscreen" class="btn-exportar-verde" type="button" style="background:#fff; color:#0f172a; border-color:#cbd5e1;">
+          ⛶ Pantalla Completa
+        </button>
+
         <label class="sw" style="margin-bottom: 0; font-weight: normal; color: #475569;">
           <input type="checkbox" id="t-vacias" checked> Plazas sin consumo
         </label>
@@ -58,7 +65,7 @@
       </div>
     </section>
 
-        <section class="kpis">
+    <section class="kpis">
       <div class="kpi">
         <div class="kpi-icon">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
