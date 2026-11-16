@@ -1,4 +1,20 @@
 /* ============================================================
+   CONTROL DE VERSIÓN AUTOMÁTICO
+   Cambia este número (ej. '1.0.1', '1.0.2') cada vez que subas 
+   una actualización al repositorio para limpiar la caché sola.
+   ============================================================ */
+(function() {
+  const APP_VERSION = '1.0.1'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
+  
+  const versionGuardada = localStorage.getItem('epp_app_version');
+  
+  if (versionGuardada !== APP_VERSION) {
+    console.log('🔄 Nueva versión detectada. Limpiando caché antigua...');
+    localStorage.clear(); // Borra la caché vieja automáticamente
+    localStorage.setItem('epp_app_version', APP_VERSION); // Guarda la nueva versión
+  }
+})();
+/* ============================================================
    Capa de datos — Supabase
    ------------------------------------------------------------
    Lee directo de las vistas del proyecto (db/schema.sql):
