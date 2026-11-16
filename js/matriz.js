@@ -378,12 +378,13 @@
     
     const epp_id = item.dataset.epp;
     const tipo = item.dataset.tipo;
-    const rect = item.getBoundingClientRect();
+    const rect = item.getBoundingClientRect(); // Obtenemos la posición exacta en pantalla
     
     const pop = document.createElement('div');
     pop.className = 'popover-epp';
-    pop.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-    pop.style.left = (rect.left + window.scrollX + 20) + 'px';
+    // Lo posicionamos justo debajo del EPP donde hiciste clic
+    pop.style.top = (rect.bottom + 5) + 'px';
+    pop.style.left = (rect.left + 20) + 'px';
     
     let botones = '';
     if (tipo === 'base') {
@@ -397,9 +398,13 @@
     pop.innerHTML = botones;
     document.body.appendChild(pop);
     
+    // Evitar que el mismo clic que abrió el menú lo cierre inmediatamente
+    event.stopPropagation(); 
+    
+    // Cerrar el menú al hacer clic en cualquier otra parte
     setTimeout(() => {
       document.addEventListener('click', function closePop(e) {
-        if (!pop.contains(e.target) && !item.contains(e.target)) { 
+        if (!pop.contains(e.target)) { 
           pop.remove(); 
           document.removeEventListener('click', closePop); 
         }

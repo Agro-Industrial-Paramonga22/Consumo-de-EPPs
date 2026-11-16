@@ -438,9 +438,13 @@ tr.vacia:hover .col-fija, tr.vacia:hover .col-total { background: #f8fafc; }
 
 /* ---------- popover EPPs ---------- */
 .popover-epp {
-  position: absolute; background: #fff; border: 1px solid var(--line);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px;
-  z-index: 100; padding: 4px;
+  position: fixed; /* Cambiamos absolute por fixed para que no dependa del scroll */
+  background: #fff; 
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+  border-radius: 6px;
+  z-index: 999999 !important; /* ESTO ES CLAVE: Lo ponemos por encima de todo */
+  padding: 4px;
 }
 .popover-epp button {
   background: none; border: none; padding: 8px 12px;
