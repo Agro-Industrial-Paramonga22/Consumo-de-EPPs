@@ -1,7 +1,5 @@
 /* ============================================================
    Pantalla 2 — CONSUMO POR PUESTO
-   Filtro por area / puesto / lugar / mes -> personas de ese puesto,
-   con el consumo mes a mes y el detalle de EPPs al desplegar.
    ============================================================ */
 
 (function () {
@@ -9,74 +7,132 @@
   let META = null, COLS = [], PERSONAS = [];
   const porMaterial = new Map();
 
-  // Cambiamos a buscarPersona
-    const st = { area: '', puesto: '', lugar: '', meses: [], buscarPersona: '' };
+  const st = { area: '', puesto: '', lugar: '', anio: '', meses: [], buscarPersona: '' };
 
   const $ = function (id) { return document.getElementById(id); };
 
-  async function init() {
+      async function init() {
+    // Mostrar la interfaz rápido
+    $('app').classList.remove('oculto');
+    $('cargando').classList.add('oculto');
+    
+    // Si no hay caché, mostramos un mensaje de carga en la tabla
+    if (!sessionStorage.getItem('epp_cache_consumo')) {
+      $('cuerpo').innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos por primera vez... (esto puede tardar unos segundos)</td></tr>';
+    }
+
     try {
-      const r = await Promise.all([Datos.meta(), Datos.columnas(), Datos.consumo()]);
-      META = r[0]; COLS = r[1]; PERSONAS = r[2];
+      const r = await Promise.all([Datos.meta(), Datos.columnas()]);
+      META = r[0]; COLS = r[1];
+      COLS.forEach(function (c) { porMaterial.set(c.m, c); });
+      
+      pintarFiltros();
+      
+      // Esto leerá de la caché o de Supabase automáticamente
+      PERSONAS = await Datos.consumo();
+
+      const mesesSet = new Set();
+      PERSONAS.forEach(function (p) {
+        Object.keys(p.meses).forEach(function (m) { 
+          if (p.meses[m] > 0) mesesSet.add(m); 
+        });
+      });
+      META.meses = Array.from(mesesSet).sort();
+
+      if (META.meses.length > 0) {
+        document.querySelector('.brand p').textContent =
+          U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
+          ' · ' + PERSONAS.length + ' personas con consumo';
+      } else {
+        document.querySelector('.brand p').textContent = 'Sin datos de consumo';
+      }
+
+      pintarFiltros();
+      render();
+
     } catch (e) {
       $('app').innerHTML =
         '<div class="card vacio">No se pudieron cargar los datos.<br><small>' +
         U.esc(e.message) + '</small></div>';
-      return;
     }
-
-    COLS.forEach(function (c) { porMaterial.set(c.m, c); });
-
-    document.querySelector('.brand p').textContent =
-      U.mesCorto(META.meses[0]) + ' – ' + U.mesCorto(META.meses[META.meses.length - 1]) +
-      ' · ' + META.personas_con_consumo + ' personas con consumo';
-
-    pintarFiltros();
-    render();
-    $('app').classList.remove('oculto');
-    $('cargando').classList.add('oculto');
   }
 
-    function pintarFiltros() {
-    // 1. Llenar el selector de Áreas
+  function pintarFiltros() {
     const areas = Array.from(new Set(PERSONAS.map(function (p) { return p.area; }))).sort();
     $('f-area').innerHTML = '<option value="">Todas</option>' +
       areas.map(function (a) {
         return '<option value="' + U.esc(a) + '">' + U.esc(a) + '</option>';
       }).join('');
 
-    // 2. Llenar el CUSTOM MULTISELECT de Meses
-    const dropMeses = $('ms-dropdown-meses');
-    dropMeses.innerHTML = META.meses.map(function (m) {
-      return `<label class="ms-item">
-                <input type="checkbox" value="${m}"> ${U.mesCorto(m)}
-              </label>`;
-    }).join('');
+    const anios = Array.from(new Set(META.meses.map(m => m.split('-')[0]))).sort().reverse();
+    $('f-anio').innerHTML = '<option value="">Todos los años</option>' +
+      anios.map(a => `<option value="${a}">${a}</option>`).join('');
+
+    function llenarMeses() {
+      const dropMeses = $('ms-dropdown-meses');
+      let html = '';
+
+      if (st.anio) {
+        // Si hay año, mostrar meses con su año
+        const mesesAnio = META.meses.filter(m => m.startsWith(st.anio));
+        html = mesesAnio.map(m => {
+          return `<label class="ms-item">
+                    <input type="checkbox" value="${m}" ${st.meses.includes(m) ? 'checked' : ''}> ${U.mesCorto(m)}
+                  </label>`;
+        }).join('');
+      } else {
+        // Si NO hay año, mostrar solo los 12 meses del calendario (Enero a Diciembre)
+        const NOMBRES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        html = NOMBRES.map((nombre, i) => {
+          const val = String(i + 1).padStart(2, '0'); // '01', '02', etc.
+          return `<label class="ms-item">
+                    <input type="checkbox" value="${val}" ${st.meses.includes(val) ? 'checked' : ''}> ${nombre}
+                  </label>`;
+        }).join('');
+      }
+
+      dropMeses.innerHTML = html;
+      
+      // Actualizar texto del botón
+      if (st.meses.length === 0) {
+        $('ms-toggle-meses').textContent = st.anio ? 'Todos los meses del ' + st.anio : 'Todos los meses';
+      } else if (st.meses.length === 1) {
+        const txt = st.anio 
+          ? U.mesCorto(st.meses[0]) 
+          : ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(st.meses[0], 10)-1];
+        $('ms-toggle-meses').textContent = txt;
+      } else {
+        $('ms-toggle-meses').textContent = st.meses.length + ' meses seleccionados';
+      }
+    }
+
+    $('ms-dropdown-meses').classList.add('oculto');
+    llenarMeses();
 
     $('ms-toggle-meses').addEventListener('click', function(e) {
       e.stopPropagation();
-      dropMeses.classList.toggle('oculto');
+      $('ms-dropdown-meses').classList.toggle('oculto');
     });
 
     document.addEventListener('click', function(e) {
-      if (!dropMeses.contains(e.target) && e.target !== $('ms-toggle-meses')) {
-        dropMeses.classList.add('oculto');
+      if (!$('ms-dropdown-meses').contains(e.target) && e.target !== $('ms-toggle-meses')) {
+        $('ms-dropdown-meses').classList.add('oculto');
       }
     });
 
-    dropMeses.addEventListener('change', function(e) {
+    $('ms-dropdown-meses').addEventListener('change', function(e) {
       if (e.target.type === 'checkbox') {
-        st.meses = Array.from(dropMeses.querySelectorAll('input:checked')).map(cb => cb.value);
-        
-        if (st.meses.length === 0) {
-          $('ms-toggle-meses').textContent = 'Todos los meses';
-        } else if (st.meses.length === 1) {
-          $('ms-toggle-meses').textContent = U.mesCorto(st.meses[0]);
-        } else {
-          $('ms-toggle-meses').textContent = st.meses.length + ' meses seleccionados';
-        }
+        st.meses = Array.from(this.querySelectorAll('input:checked')).map(cb => cb.value);
+        llenarMeses(); 
         render();
       }
+    });
+
+    $('f-anio').addEventListener('change', function() {
+      st.anio = this.value;
+      st.meses = []; 
+      llenarMeses(); 
+      render();
     });
 
     function actualizarSelectoresDependientes() {
@@ -116,22 +172,34 @@
     });
 
     $('b-limpiar').addEventListener('click', function () {
-      st.area = st.puesto = st.lugar = st.buscarPersona = '';
+      st.area = st.puesto = st.lugar = st.buscarPersona = st.anio = '';
       st.meses = [];
-      $('f-area').value = ''; $('f-puesto').value = ''; $('f-lugar').value = ''; 
+      $('f-area').value = ''; $('f-puesto').value = ''; $('f-lugar').value = ''; $('f-anio').value = '';
       $('f-buscar-persona').value = ''; 
-      dropMeses.querySelectorAll('input').forEach(cb => cb.checked = false);
-      $('ms-toggle-meses').textContent = 'Todos los meses';
+      llenarMeses();
       actualizarSelectoresDependientes();
       render();
     });
   }
+
   function mesesVisibles() {
-    if (st.meses.length === 0) return META.meses.slice();
-    return META.meses.filter(m => st.meses.includes(m));
+    if (st.meses.length > 0) {
+      return META.meses.filter(m => {
+        if (st.anio) {
+          return st.meses.includes(m);
+        } else {
+          const mesNum = m.split('-')[1];
+          return st.meses.includes(mesNum);
+        }
+      });
+    }
+    if (st.anio) {
+      return META.meses.filter(m => m.startsWith(st.anio));
+    }
+    return META.meses.slice();
   }
 
-   function render() {
+  function render() {
     const meses = mesesVisibles();
 
     const lista = PERSONAS.filter(function (p) {
@@ -140,8 +208,8 @@
       if (st.lugar && p.lugar !== st.lugar) return false;
       if (st.buscarPersona && p.nombre.toLowerCase().indexOf(st.buscarPersona) === -1) return false;
       
-      if (st.meses.length > 0) {
-        const tieneConsumo = st.meses.some(m => (p.meses[m] || 0) > 0);
+      if (st.meses.length > 0 || st.anio) {
+        const tieneConsumo = meses.some(m => (p.meses[m] || 0) > 0);
         if (!tieneConsumo) return false;
       }
       return true;
@@ -150,8 +218,10 @@
     lista.sort(function (a, b) { return b.total - a.total; });
 
     const suma = function (p) {
-      if (st.meses.length === 0) return p.total;
-      return st.meses.reduce((acc, m) => acc + (p.meses[m] || 0), 0);
+      if (st.meses.length > 0 || st.anio) {
+        return meses.reduce((acc, m) => acc + (p.meses[m] || 0), 0);
+      }
+      return p.total;
     };
 
     let granTotal = 0;
@@ -216,17 +286,17 @@
     };
   }
 
-    function detalleHTML(p, meses) {
+  function detalleHTML(p, meses) {
     const items = p.items.slice().sort(function (a, b) {
-      if (st.meses.length > 0) {
-        const sumA = st.meses.reduce((acc, m) => acc + (a.meses[m] || 0), 0);
-        const sumB = st.meses.reduce((acc, m) => acc + (b.meses[m] || 0), 0);
+      if (st.meses.length > 0 || st.anio) {
+        const sumA = meses.reduce((acc, m) => acc + (a.meses[m] || 0), 0);
+        const sumB = meses.reduce((acc, m) => acc + (b.meses[m] || 0), 0);
         return sumB - sumA;
       }
       return b.v - a.v;
     }).filter(function (it) {
-      if (st.meses.length === 0) return true;
-      return st.meses.some(m => (it.meses[m] || 0) > 0);
+      if (st.meses.length === 0 && !st.anio) return true;
+      return meses.some(m => (it.meses[m] || 0) > 0);
     });
 
     if (!items.length) return '<div class="detalle-in vacio">Sin detalle en los meses seleccionados.</div>';
@@ -238,8 +308,8 @@
         return '<td class="' + (v ? '' : 'cero') + '">' + (v ? U.num(v) : '–') + '</td>';
       }).join('');
       
-      const tot = st.meses.length > 0 
-        ? st.meses.reduce((acc, m) => acc + (it.meses[m] || 0), 0)
+      const tot = (st.meses.length > 0 || st.anio)
+        ? meses.reduce((acc, m) => acc + (it.meses[m] || 0), 0)
         : it.v;
 
       return '<tr>' +

@@ -670,43 +670,79 @@ tr.vacia:hover .col-fija, tr.vacia:hover .col-total { background: #f8fafc; }
    ESTILOS UNIFICADOS PARA TABLA DE CONSUMO
    ========================================= */
 
-/* Obligamos a ambas tablas a medir 100% y usar el mismo tipo de layout */
+/* El contenedor permite scroll horizontal y vertical */
+.tabla-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 320px);
+  position: relative;
+}
+
+/* CAMBIO CLAVE: Usamos 'auto' y 'max-content' para que la tabla se expanda */
 table.consumo, table.det { 
-  width: 100%; 
-  border-collapse: collapse; 
-  table-layout: fixed; 
+  border-collapse: separate; /* Requerido para que las columnas fijas funcionen */
+  border-spacing: 0;
+  table-layout: auto; 
+  width: max-content; 
+  min-width: 100%;
 }
 
 /* CABECERA DE LA TABLA PRINCIPAL */
 table.consumo thead th {
-  position: sticky; top: 0; z-index: 3;
+  position: sticky; 
+  top: 0; 
+  z-index: 3;
   background: #fbfcfe;
   border-bottom: 2px solid var(--line);
   padding: 12px 12px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
-  color: var(--muted); font-weight: 650;
+  font-size: 11px; 
+  text-transform: uppercase; 
+  letter-spacing: .4px;
+  color: var(--muted); 
+  font-weight: 650;
   text-align: right; 
+  min-width: 70px; /* Evita que los meses se aplasten */
+  white-space: nowrap;
 }
 
-/* LA PRIMERA COLUMNA (Persona / EPP) MIDE 300px EN AMBAS TABLAS */
+/* --- COLUMNA FIJA IZQUIERDA (Persona) --- */
 table.consumo th:first-child, 
-table.consumo td:first-child,
-table.det td:first-child { 
-  width: 300px; 
+table.consumo td:first-child { 
+  position: sticky;
+  left: 0;
+  z-index: 4; /* Por encima de las demás celdas al hacer scroll */
+  background: #fff;
+  width: 320px; 
+  min-width: 320px;
+  max-width: 320px;
   text-align: left; 
   font-variant-numeric: normal; 
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Sombra para denotar que está fija */
+}
+table.consumo thead th:first-child {
+  z-index: 5; /* La cabecera por encima de todo */
+  background: #fbfcfe;
 }
 
-/* LA ÚLTIMA COLUMNA (Total) MIDE 110px EN AMBAS TABLAS */
+/* --- COLUMNA FIJA DERECHA (Total) --- */
 table.consumo th:last-child, 
-table.consumo td:last-child,
-table.det td:last-child { 
-  width: 110px; 
+table.consumo td:last-child { 
+  position: sticky;
+  right: 0;
+  z-index: 4;
+  background: #fff;
+  width: 120px; 
+  min-width: 120px;
+  max-width: 120px;
   text-align: right; 
   font-variant-numeric: tabular-nums; 
+  box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+}
+table.consumo thead th:last-child {
+  z-index: 5;
+  background: #fbfcfe;
 }
 
-/* LAS CELDAS NORMALES (Meses) SE ALINEAN A LA DERECHA */
+/* LAS CELDAS NORMALES (Meses) */
 table.consumo tbody td,
 table.det td { 
   padding: 10px 12px; 
@@ -714,62 +750,115 @@ table.det td {
   text-align: right; 
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  min-width: 70px; 
+  background: #fff;
 }
 
-/* EFECTOS VISUALES DE LA TABLA PRINCIPAL */
+/* EFECTOS VISUALES */
 table.consumo tbody tr.fila:hover td { background: #f6fbf8; cursor: pointer; }
 table.consumo tbody tr.fila.abierta td { background: #ecfdf5; }
 
-/* CONTENEDOR DEL DETALLE (Sin padding para que la tabla interna se expanda) */
+/* CONTENEDOR DEL DETALLE */
 tr.detalle td { 
   background: #fafcfb; 
   padding: 0; 
+  border-bottom: 2px solid var(--line);
 }
 .detalle-in { 
   padding: 0; 
   margin: 0;
+  min-width: 100%;
 }
 
 /* SANGRÍA PARA EL NOMBRE DEL EPP EN EL DETALLE */
 table.det td:first-child { 
   padding-left: 34px; 
   font-weight: 500;
+  width: 320px; 
+  min-width: 320px;
+  max-width: 320px;
+  position: sticky;
+  left: 0;
+  background: #fafcfb; /* Mismo fondo del detalle */
+}
+table.det td:last-child {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  position: sticky;
+  right: 0;
+  background: #fafcfb;
 }
 /* --- Selector Múltiple de Meses --- */
 .ms-toggle {
-  min-width: 200px; padding: 9px 32px 9px 12px; border: 1px solid #cbd5e1;
-  border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--ink);
-  background-color: #fff; text-align: left; cursor: pointer; position: relative; appearance: none;
+  min-width: 200px; 
+  padding: 9px 32px 9px 12px; 
+  border: 1px solid #cbd5e1;
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-weight: 500; 
+  color: var(--ink);
+  background-color: #fff; 
+  text-align: left; 
+  cursor: pointer; 
+  position: relative; 
+  appearance: none;
 }
+
 .ms-toggle::after {
-  content: ''; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  border: 5px solid transparent; border-top-color: #64748b;
+  content: ''; 
+  position: absolute; 
+  right: 12px; 
+  top: 50%; 
+  transform: translateY(-50%);
+  border: 5px solid transparent; 
+  border-top-color: #64748b;
 }
-.ms-toggle:focus { border-color: var(--accent); outline: none; }
+
+.ms-toggle:focus { 
+  border-color: var(--accent); 
+  outline: none; 
+}
+
+/* La ventanita flotante */
 .ms-dropdown {
-  position: absolute; top: 100%; left: 0; min-width: 200px; background: #fff;
-  border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 100; max-height: 250px; overflow-y: auto; padding: 6px; margin-top: 4px;
+  position: absolute; 
+  top: 100%; 
+  left: 0; 
+  width: 320px; /* Más ancho para que quepan los nombres */
+  background: #fff;
+  border: 1px solid var(--line); 
+  border-radius: 6px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100; 
+  max-height: 250px; 
+  overflow-y: auto; 
+  padding: 8px; 
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 columnas */
+  gap: 4px;
 }
+
 .ms-item {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-  font-size: 13px; cursor: pointer; border-radius: 4px; color: var(--ink); transition: background 0.15s;
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  padding: 6px 8px;
+  font-size: 12px; 
+  cursor: pointer; 
+  border-radius: 4px; 
+  color: var(--ink); 
+  transition: background 0.15s;
 }
-.ms-item:hover { background: #f1f5f9; }
-.ms-item input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
-/* --- MODAL PARA AGREGAR EPP --- */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;
+
+.ms-item:hover { 
+  background: #f1f5f9; 
 }
-.modal-content {
-  background: #fff; padding: 24px; border-radius: 10px; width: 420px; max-width: 90%;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+
+.ms-item input { 
+  accent-color: var(--accent); 
+  width: 14px; 
+  height: 14px; 
+  cursor: pointer; 
 }
-.modal-content h2 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: var(--ink); }
-.modal-content .f-group { display: flex; flex-direction: column; }
-.modal-content .f-group label { font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #475569; }
-.modal-content .f-group input, .modal-content .f-group select { 
-  width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; 
-}
-.modal-content .f-group input:focus, .modal-content .f-group select:focus { border-color: var(--accent); outline: none; }

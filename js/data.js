@@ -90,57 +90,79 @@ window.Datos = (function () {
           adic.get(c.plaza_id).push([c.material, num(c.cobertura_pct), c.motivo]);
         });
 
-                return r[0].map(function (p) {
+        return r[0].map(function (p) {
           const v = (base.get(p.plaza_id) || []).slice().sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
           const a = (adic.get(p.plaza_id) || []).slice().sort(function (x, y) { return x[1] - y[1]; });
           return {
             id: p.plaza_id,
-            area: p.seccion || 'Sin Área', // <--- AQUÍ CAMBIAMOS 'a' POR 'area'
+            area: p.seccion || 'Sin Área',
             p: p.puesto, 
             l: p.ceco_desc || '(sin centro de costo)',
             n: consumidores.get(p.plaza_id) || 0,
-            v: v, t: num(p.costo_kit), a: a // El 'a: a' se queda para los EPPs adicionales
+            v: v, t: num(p.costo_kit), a: a
           };
         }).sort(function (a, b) { return a.p.localeCompare(b.p) || a.l.localeCompare(b.l); });
       });
     },
 
-    /* Consumo real por persona (pantalla 2) */
-        consumo: function () {
+        /* Consumo real por persona (pantalla 2) */
+        /* Consumo real por persona (pantalla 2) */
+    consumo: function () {
       return una('consumo', async function () {
-        // Agregamos 'seccion' a la consulta
-        const lineas = await restAll('vw_consumo_persona?select=dni,nombre,puesto,ceco_desc,fecha,material,cantidad,valor,seccion');
+        
+        // 1. Intentar leer de la caché del navegador
+        const cacheGuardado = sessionStorage.getItem('epp_cache_consumo');
+        if (cacheGuardado) {
+          try {
+            return JSON.parse(cacheGuardado);
+          } catch (e) {
+            console.warn('Error leyendo caché, se descargará de nuevo', e);
+          }
+        }
+
+        // 2. Si no hay caché, descargar de Supabase
+        const lineas = await restAll('vw_consumo_persona_agrupado?select=*');
         const por = new Map();
+        
         lineas.forEach(function (x) {
           if (!por.has(x.dni)) {
             por.set(x.dni, {
               dni: x.dni, nombre: x.nombre, puesto: x.puesto || '', lugar: x.ceco_desc || '',
-              area: x.seccion || 'Sin Área', // <--- GUARDAMOS EL ÁREA
+              area: x.seccion || 'Sin Área',
               total: 0, meses: {}, items: {}
             });
           }
-          // ... el resto de la función queda exactamente igual ...
           const o = por.get(x.dni);
-          const mes = String(x.fecha).slice(0, 7);
+          const mes = x.mes; 
           const val = num(x.valor);
+          
           o.total = Math.round((o.total + val) * 100) / 100;
           o.meses[mes] = Math.round(((o.meses[mes] || 0) + val) * 100) / 100;
+          
           const it = o.items[x.material] || (o.items[x.material] = { c: 0, v: 0, meses: {}, m: x.material });
           it.c += num(x.cantidad);
           it.v = Math.round((it.v + val) * 100) / 100;
           it.meses[mes] = Math.round(((it.meses[mes] || 0) + val) * 100) / 100;
         });
 
-        return Array.from(por.values()).map(function (o) {
+        const resultado = Array.from(por.values()).map(function (o) {
           o.items = Object.values(o.items).sort(function (a, b) { return b.v - a.v; })
             .map(function (it) {
               return { m: it.m, c: Math.round(it.c * 100) / 100, v: it.v, meses: it.meses };
             });
           return o;
         });
+
+        // 3. Guardar en la caché para futuras visitas
+        try {
+          sessionStorage.setItem('epp_cache_consumo', JSON.stringify(resultado));
+        } catch (e) {
+          console.warn('El navegador no tiene espacio para caché', e);
+        }
+
+        return resultado;
       });
     },
-
     /* Escribir en Supabase (matriz_estandar) */
     actualizarMatriz: async function (plaza_id, epp_id, accion) {
       const url = CFG.SUPABASE_URL + '/rest/v1/matriz_estandar';
@@ -161,39 +183,24 @@ window.Datos = (function () {
       } 
       
       if (accion === 'hacer_base') {
-        const body = {
-          plaza_id: plaza_id,
-          epp_id: epp_id,
-          requerido: true,
-          origen: 'manual'
-        };
-        const r = await fetch(url, {
-          method: 'POST', headers: headers, body: JSON.stringify(body)
-        });
+        const body = { plaza_id: plaza_id, epp_id: epp_id, requerido: true, origen: 'manual' };
+        const r = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
         if (!r.ok) throw new Error('Error al insertar: ' + (await r.text()));
         cache.delete('matriz');
         return true;
       }
       
       if (accion === 'eliminar') {
-        const body = {
-          plaza_id: plaza_id,
-          epp_id: epp_id,
-          requerido: false,
-          origen: 'manual'
-        };
-        const r = await fetch(url, {
-          method: 'POST', headers: headers, body: JSON.stringify(body)
-        });
+        const body = { plaza_id: plaza_id, epp_id: epp_id, requerido: false, origen: 'manual' };
+        const r = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
         if (!r.ok) throw new Error('Error al eliminar: ' + (await r.text()));
         cache.delete('matriz');
         return true;
       }
     },
 
-    /* --- NUEVAS FUNCIONES PARA EL CATÁLOGO DE EPPs --- */
+    /* --- FUNCIONES PARA EL CATÁLOGO DE EPPs --- */
     
-    // Trae todos los EPPs activos de la vista de precios
     catalogoEPPs: async function () {
       const cs = await restAll('vw_epp_precio?select=*&order=descripcion.asc');
       return cs.map(function (c) {
@@ -204,7 +211,6 @@ window.Datos = (function () {
       });
     },
 
-    // Desactiva el EPP (no lo borra de la base de datos, solo lo oculta)
     desactivarEPP: async function (material) {
       const url = CFG.SUPABASE_URL + '/rest/v1/epp?material=eq.' + material;
       const headers = {
@@ -212,21 +218,15 @@ window.Datos = (function () {
         'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
         'Content-Type': 'application/json'
       };
-      const body = { activo: false };
-
       const r = await fetch(url, {
-        method: 'PATCH', headers: headers, body: JSON.stringify(body)
+        method: 'PATCH', headers: headers, body: JSON.stringify({ activo: false })
       });
       if (!r.ok) throw new Error('Error al eliminar: ' + (await r.text()));
-      
-      // Limpiamos caché para que la matriz y los filtros se actualicen
       cache.delete('columnas');
       cache.delete('matriz');
       return true;
-    }
-        ,
+    },
 
-    // Actualiza el precio de un EPP en Supabase
     actualizarPrecio: async function (material, nuevo_precio) {
       const url = CFG.SUPABASE_URL + '/rest/v1/precios?material=eq.' + material;
       const headers = {
@@ -234,19 +234,15 @@ window.Datos = (function () {
         'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
         'Content-Type': 'application/json'
       };
-      const body = { precio: nuevo_precio };
-
       const r = await fetch(url, {
-        method: 'PATCH', headers: headers, body: JSON.stringify(body)
+        method: 'PATCH', headers: headers, body: JSON.stringify({ precio: nuevo_precio })
       });
       if (!r.ok) throw new Error('Error al actualizar precio: ' + (await r.text()));
-      
       cache.delete('columnas');
       cache.delete('matriz');
       return true;
-    }
-        ,
-    // Insertar un EPP nuevo y su precio inicial
+    },
+
     agregarEPP: async function (datos) {
       const headers = {
         'apikey': CFG.SUPABASE_KEY,
@@ -254,7 +250,6 @@ window.Datos = (function () {
         'Content-Type': 'application/json'
       };
 
-      // 1. Insertar en la tabla 'epp'
       const bodyEpp = {
         material: datos.material,
         descripcion: datos.descripcion,
@@ -269,7 +264,6 @@ window.Datos = (function () {
       });
       if (!r.ok) throw new Error(await r.text());
 
-      // 2. Insertar en la tabla 'precios'
       const bodyPrecio = {
         material: datos.material,
         precio: parseFloat(datos.precio),
@@ -283,8 +277,45 @@ window.Datos = (function () {
       });
       if (!r.ok) throw new Error(await r.text());
 
-      // Limpiamos caché
       cache.delete('columnas');
+      cache.delete('matriz');
+      return true;
+    },
+
+    /* --- NUEVAS FUNCIONES (Paso 3) --- */
+    
+    reactivarEPP: async function (material) {
+      const url = CFG.SUPABASE_URL + '/rest/v1/epp?material=eq.' + material;
+      const headers = {
+        'apikey': CFG.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      };
+      const r = await fetch(url, {
+        method: 'PATCH', headers: headers, body: JSON.stringify({ activo: true })
+      });
+      if (!r.ok) throw new Error('Error al reactivar: ' + (await r.text()));
+      cache.delete('columnas');
+      cache.delete('matriz');
+      return true;
+    },
+
+    eppsInactivos: async function () {
+      const cs = await restAll('epp?select=material,descripcion,unidad&activo=eq.false');
+      return cs.map(c => ({ m: c.material, d: c.descripcion, u: c.unidad }));
+    },
+
+    reconciliarDnis: async function () {
+      const r = await fetch(CFG.SUPABASE_URL + '/rest/v1/rpc/reconciliar_dnis_huerfanos', {
+        method: 'POST',
+        headers: {
+          'apikey': CFG.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!r.ok) throw new Error('Error al reconciliar: ' + (await r.text()));
+      cache.delete('consumo');
       cache.delete('matriz');
       return true;
     }

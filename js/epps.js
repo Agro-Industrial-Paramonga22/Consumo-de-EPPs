@@ -160,7 +160,6 @@
       });
       
       $('modal-epp').classList.add('oculto');
-      // Recargar la tabla para que aparezca el nuevo
       TODOS_LOS_EPPS = await Datos.catalogoEPPs();
       renderTabla(TODOS_LOS_EPPS);
       
@@ -171,6 +170,51 @@
       this.disabled = false;
     }
   });
+
+  // --- LÓGICA: VER INACTIVOS ---
+  $('btn-ver-inactivos').addEventListener('click', async () => {
+    try {
+      const inactivos = await Datos.eppsInactivos();
+      if (inactivos.length === 0) {
+        alert('No hay EPPs inactivos.');
+        return;
+      }
+      
+      const tbody = $('cuerpo-epps');
+      tbody.innerHTML = inactivos.map(c => `
+        <tr style="opacity: 0.6;">
+          <td style="text-align: left; font-size: 11px; color: #64748b;">${c.m}</td>
+          <td style="text-align: left; font-weight: 600;">${c.d}</td>
+          <td style="text-align: center;">${c.u}</td>
+          <td style="text-align: right;">
+            <button class="btn-primario btn-reactivar" data-id="${c.m}" style="padding: 4px 8px; font-size: 12px;">Reactivar</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('.btn-reactivar').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const mat = this.dataset.id;
+          this.disabled = true;
+          this.textContent = '...';
+          try {
+            await Datos.reactivarEPP(mat);
+            TODOS_LOS_EPPS = await Datos.catalogoEPPs();
+            renderTabla(TODOS_LOS_EPPS);
+            // Forzamos el filtro para que se vea el EPP reactivado
+            $('f-buscar').value = '';
+            $('f-buscar').dispatchEvent(new Event('input'));
+          } catch (e) {
+            alert('Error: ' + e.message);
+          }
+        });
+      });
+    } catch (e) {
+      alert('Error al cargar inactivos: ' + e.message);
+    }
+  });
+
+  // (ELIMINADO EL LISTENER DE RECONCILIAR)
 
   document.addEventListener('DOMContentLoaded', init);
 })();

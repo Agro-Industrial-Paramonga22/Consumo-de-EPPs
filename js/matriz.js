@@ -246,7 +246,7 @@
     };
   }
 
-  /* ---------------- panel de detalle ---------------- */
+   /* ---------------- panel de detalle ---------------- */
   function abrirDetalle(f) {
     FILA_ACTUAL = f; // Guardamos la fila actual
     const d = $('drawer');
@@ -254,16 +254,19 @@
     $('d-sub').textContent = f.l + ' · ' + (f.n || 0) + ' persona(s) con consumo en esta plaza';
 
     let html = '';
+    
+    // --- PARTE 1: ÍTEMS DEL KIT BASE Y ADICIONALES ---
     if (f.v.length === 0) {
-      html = '<div class="vacio">Esta plaza no tiene ningún consumo registrado con DNI.' +
-             '<br><br>El kit está <b>pendiente de definir</b>.</div>';
+      // Si está vacío, mostramos el mensaje pero NO cortamos la función
+      html += '<div class="vacio">Esta plaza no tiene ningún consumo registrado con DNI.' +
+              '<br><br>El kit está <b>pendiente de definir</b>.</div>';
     } else {
       const items = f.v.map(function (p) {
         return { c: porMaterial.get(p[0]), cob: p[1] };
       }).sort(function (a, b) { return b.c.p - a.c.p; });
 
       // --- ÍTEMS DEL KIT BASE (Interactivos) ---
-      html = items.map(function (it) {
+      html += items.map(function (it) {
         return '<div class="kit-item" data-epp="' + it.c.m + '" data-tipo="base">' +
           '<span class="pt" style="background:' + U.color(it.c.f) + '"></span>' +
           '<div class="desc">' + U.esc(it.c.d) +
@@ -289,18 +292,19 @@
         }).join('');
       }
 
-      // --- BOTÓN PARA AGREGAR NUEVO EPP ---
-      html += '<div style="margin-top:16px; text-align:center;">' +
-              '<button id="btn-add-epp" class="btn-exportar" style="width:100%">+ Agregar EPP al kit</button>' +
-              '<div id="buscador-epp" class="oculto" style="margin-top:10px; position:relative;">' +
-              '<input type="text" id="input-buscar-epp" placeholder="Escribe el nombre del EPP..." style="width:100%; box-sizing:border-box; padding:8px;">' +
-              '<div id="resultados-epp" class="resultados-busqueda"></div>' +
-              '</div></div>';
-      
       html += '<p style="font-size:11.5px;color:#94a3b8;margin-top:14px;line-height:1.4">' +
       'La matriz es el consumo base del puesto: un EPP por familia (el que usa más gente) ' +
       'y solo si lo usa la mayoría. Haz clic en un EPP para moverlo entre el Kit Base y el Consumo Adicional.</p>';
     }
+
+    // --- PARTE 2: BOTÓN PARA AGREGAR NUEVO EPP (SIEMPRE VISIBLE) ---
+    html += '<div style="margin-top:16px; text-align:center;">' +
+            '<button id="btn-add-epp" class="btn-exportar" style="width:100%">+ Agregar EPP al kit</button>' +
+            '<div id="buscador-epp" class="oculto" style="margin-top:10px; position:relative;">' +
+            '<input type="text" id="input-buscar-epp" placeholder="Escribe el nombre del EPP..." style="width:100%; box-sizing:border-box; padding:8px;">' +
+            '<div id="resultados-epp" class="resultados-busqueda"></div>' +
+            '</div></div>';
+
     $('d-cuerpo').innerHTML = html;
     d.classList.add('abierto');
 

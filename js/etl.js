@@ -90,19 +90,12 @@ window.ETL = (function () {
     return idx;
   }
 
-  /* ---------------- construcción ---------------- */
   async function construir(archivos) {
     const errores = [];
-    
-    // INICIALIZAMOS VACÍO. Solo se llenará lo que se suba.
     const out = {}; 
 
-    if (!archivos.consumo && !archivos.costos && !archivos.mae) {
+    if (!archivos.consumo && !archivos.costos && !archivos.mae && !archivos.servicios && !archivos.stock) {
       errores.push('Debes subir al menos un archivo.');
-      return { errores };
-    }
-    if (archivos.consumo && (!archivos.mae || !archivos.costos)) {
-      errores.push('Para procesar el Consumo, debes subir también el MAE y los Costos.');
       return { errores };
     }
 
@@ -114,6 +107,40 @@ window.ETL = (function () {
     const personas = new Map();
 
     let ok = 0, sinDni = 0, huerfano = 0;
+
+    // --- MAGIA: Si no suben MAE, traer las personas existentes de Supabase ---
+       // --- MAGIA: Si no suben MAE, traer las personas existentes de Supabase ---
+    if (!archivos.mae) {
+      try {
+        let offset = 0;
+        let hasMore = true;
+        while (hasMore) {
+          // Usamos la nueva vista que creamos en Supabase
+          const resp = await fetch(window.EPP_CONFIG.SUPABASE_URL + '/rest/v1/vw_personas_maestro?select=*&limit=1000&offset=' + offset, {
+            headers: {
+              apikey: window.EPP_CONFIG.SUPABASE_KEY,
+              Authorization: 'Bearer ' + window.EPP_CONFIG.SUPABASE_KEY
+            }
+          });
+          if (!resp.ok) break;
+          const data = await resp.json();
+          data.forEach(function(p) {
+            if (!p.dni) return;
+            personas.set(p.dni.replace(/^0+/, ''), {
+              dni: p.dni, nombre: p.nombre, puesto: p.puesto, ceco: p.ceco, fuente: 'MAE'
+            });
+            if (p.gerencia) gerencias.add(p.gerencia);
+            if (p.seccion) secciones.set(p.seccion, p.gerencia);
+            if (p.ceco) centros.set(p.ceco, { descripcion: p.ceco_desc, seccion: p.seccion });
+            if (p.puesto) puestos.add(p.puesto);
+          });
+          if (data.length < 1000) hasMore = false;
+          else offset += 1000;
+        }
+      } catch (e) {
+        console.warn('No se pudo traer el MAE de Supabase. Se procesará sin validar DNI.', e);
+      }
+    }
 
     /* ---- MAE ---- */
     if (archivos.mae) {
@@ -193,12 +220,12 @@ window.ETL = (function () {
           factor: 1
         });
       });
+      
       if (costos.has('60000005032')) { 
         costos.get('60000005032').precio = 0.90;
         costos.get('60000005032').factor = 100;
       }
 
-      // Solo se crean las llaves si hay archivo de costos
       out.epp = [];
       out.precios = [];
       costos.forEach((c, mat) => {
@@ -215,18 +242,33 @@ window.ETL = (function () {
       const con = await leer(archivos.consumo);
       const iFec = requerida('Fecha base (Consumo)', col(con.headers, [h => h.startsWith('FECHA')], 0), errores);
       const iCMat = requerida('Material (Consumo)', col(con.headers, [h => h === 'MATERIAL'], 1), errores);
+      const iCDesc = col(con.headers, [h => h.includes('DESCRIPCION')], 2);
       const iCan = requerida('Cantid.reducidas (Consumo)', col(con.headers, [h => h.startsWith('CANTID')], 3), errores);
       const iCUni = col(con.headers, [h => h.startsWith('UNIDAD')], 4);
-      const iCDni = requerida('DNI (Consumo)', col(con.headers, [h => h === 'DNI'], 6), errores);
+      
+      const iCDni = requerida('DNI o Dest.mercancía (Consumo)', col(con.headers, [
+        h => h === 'DNI', 
+        h => h.includes('DEST MERCANCIA'), 
+        h => h.includes('DEST MERCANCÍA'),
+        h => h.includes('MERCANCIA'),
+        h => h.includes('MERCANCÍA')
+      ], 6), errores);
+      
       if (errores.length) return { errores };
 
       const nombres = new Map();
       personas.forEach(p => { if (p.nombre) nombres.set(norm(p.nombre), p.dni); });
 
       const usados = new Set();
-      
-      // Solo se crea la llave si hay archivo de consumo
+      const materialesNuevos = new Map(); 
+
       out.consumo = [];
+      
+      // SOLO preparamos epp y precios si el usuario subió costos (Evita borrar precios)
+      if (archivos.costos) {
+        out.epp = out.epp || [];
+        out.precios = out.precios || [];
+      }
 
       con.rows.forEach(r => {
         const mat = texto(r[iCMat]);
@@ -234,15 +276,32 @@ window.ETL = (function () {
         const fecha = fechaISO(r[iFec]);
         if (!fecha) return;
         usados.add(mat);
+
+        const desc = (iCDesc >= 0 ? texto(r[iCDesc]) : '') || 'SIN DESCRIPCIÓN';
+        
+        if (archivos.costos && !costos.has(mat) && !materialesNuevos.has(mat)) {
+          materialesNuevos.set(mat, {
+            material: mat, descripcion: desc, familia: familiaDe(desc),
+            unidad: (iCUni >= 0 ? texto(r[iCUni]) : '') || 'UN', factor: 1,
+            solo_soldadura: SOLDADURA_EPP.has(mat), pendiente_precio: true
+          });
+        }
+
         const cantidad = numero(r[iCan]);
         const unidad = (iCUni >= 0 ? texto(r[iCUni]) : '') || (costos.get(mat) || {}).unidad || 'UN';
+        
         const crudo = texto(r[iCDni]);
         let dni = null, ref = null, estado = 'sin_dni';
 
         if (crudo) {
-          if (/^\d{8}$/.test(crudo)) {
-            if (personas.has(crudo.replace(/^0+/, ''))) { dni = crudo; estado = 'ok'; }
-            else { dni = crudo; estado = 'dni_huerfano'; }
+          const dniLimpio = crudo.replace(/\.0+$/, '').replace(/\D/g, ''); 
+          
+          if (/^\d{8}$/.test(dniLimpio)) {
+            if (personas.has(dniLimpio.replace(/^0+/, ''))) { 
+              dni = dniLimpio; estado = 'ok'; 
+            } else { 
+              dni = dniLimpio; estado = 'dni_huerfano'; 
+            }
           } else {
             ref = crudo;
             const toks = norm(crudo).split(' ').filter(Boolean);
@@ -264,21 +323,17 @@ window.ETL = (function () {
         });
       });
 
-      if (archivos.costos) {
-        const faltantes = [];
-        usados.forEach(mat => {
-          if (!costos.get(mat)) faltantes.push(mat);
+      // Solo inyectamos materiales nuevos si subieron costos
+      if (archivos.costos && materialesNuevos.size > 0) {
+        materialesNuevos.forEach(epp => {
+          out.epp.push(epp);
+          out.precios.push({ material: epp.material, precio: 0, vigente_desde: '2026-01-01' });
         });
-        if (faltantes.length) {
-          errores.push('Estos materiales del consumo no están en Costos: ' + faltantes.slice(0, 6).join(', '));
-          return { errores };
-        }
       }
     }
 
     /* ---- plazas ---- */
     if (archivos.mae) {
-      // Solo se crean las llaves si hay archivo de MAE
       out.gerencias = [];
       out.secciones = [];
       out.cecos = [];
