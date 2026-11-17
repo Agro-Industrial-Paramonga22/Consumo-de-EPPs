@@ -77,8 +77,6 @@
     $('k-plazas').textContent = totalPlazas;
     $('k-plazas-sub').textContent = plazasConConsumo + ' con consumo registrado';
     $('k-epps').textContent = eppsUnicos.size;
-    $('k-costo').textContent = U.soles(costoTotal);
-    $('k-costo-sub').textContent = 'suma de las ' + totalPlazas + ' plazas';
   }
 
   /* ---------------- FUNCIONES DE PANTALLA COMPLETA ---------------- */

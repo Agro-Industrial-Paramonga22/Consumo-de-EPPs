@@ -124,7 +124,7 @@
     });
   }
 
-  function render() {
+    function render() {
     // 1. Filtrar
     const lista = filasVisibles();
 
@@ -133,8 +133,33 @@
     lista.forEach(p => { granTotal += p.total; });
 
     $('k-personas').textContent = lista.length;
+    
+    // Volvemos a pintar el Costo Total del Filtro
     $('k-total').textContent = 'S/ ' + granTotal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // --- Actualizar la tarjeta de Máx y Mín Consumo ---
+    const rankingActual = obtenerRankingSecciones();
+    if (rankingActual.length > 0) {
+      const max = rankingActual[0];
+      const min = rankingActual[rankingActual.length - 1];
+      
+      $('k-rank-max-sec').textContent = max.nombre;
+      $('k-rank-max-sec').title = max.nombre;
+      $('k-rank-max-val').textContent = 'S/ ' + max.gasto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
+      
+      $('k-rank-min-sec').textContent = min.nombre;
+      $('k-rank-min-sec').title = min.nombre;
+      $('k-rank-min-val').textContent = 'S/ ' + min.gasto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
+    } else {
+      $('k-rank-max-sec').textContent = '—';
+      $('k-rank-max-val').textContent = '—';
+      $('k-rank-min-sec').textContent = '—';
+      $('k-rank-min-val').textContent = '—';
+    }
+    
     $('contador').textContent = 'Mostrando ' + lista.length + ' de ' + PERSONAS.length + ' personas';
+
+    // ... (El resto de tu función render() sigue igual, desde "const html = lista.map...")
 
     // 3. Pintar tabla
     const html = lista.map(function(p, i) {
@@ -183,11 +208,163 @@
 
   function cerrarDetalle() { $('drawer').classList.remove('abierto'); }
 
+    /* ---------------- LÓGICA DE RANKING (Navegación y Filtros) ---------------- */
+  let rankingView = { level: 'secciones', seccionActiva: null };
+
+  function obtenerRankingSecciones() {
+    const porSeccion = {};
+    const listaFiltrada = filasVisibles();
+
+    listaFiltrada.forEach(p => {
+      if (st.seccion) {
+        const sec = st.seccion || 'SIN ÁREA';
+        porSeccion[sec] = (porSeccion[sec] || 0) + p.total;
+      } else {
+        const secs = new Set(p.org.map(o => o.seccion || 'SIN ÁREA'));
+        secs.forEach(sec => {
+          porSeccion[sec] = (porSeccion[sec] || 0) + p.total;
+        });
+      }
+    });
+
+    return Object.keys(porSeccion).map(sec => ({
+      nombre: sec,
+      gasto: porSeccion[sec]
+    })).sort((a, b) => b.gasto - a.gasto);
+  }
+
+  function obtenerRankingCecos(seccionFiltro) {
+    const porCeco = {};
+    const listaFiltrada = filasVisibles();
+
+    listaFiltrada.forEach(p => {
+      const cecos = new Set();
+      p.org.forEach(o => {
+        if (o.seccion === seccionFiltro) {
+          cecos.add(o.lugar || 'SIN CECO');
+        }
+      });
+      cecos.forEach(c => {
+        porCeco[c] = (porCeco[c] || 0) + p.total;
+      });
+    });
+
+    return Object.keys(porCeco).map(c => ({
+      nombre: c,
+      gasto: porCeco[c]
+    })).sort((a, b) => b.gasto - a.gasto);
+  }
+
+  function abrirModalRanking() {
+    rankingView = { level: 'secciones', seccionActiva: null };
+    renderRankingModal();
+    $('modal-ranking').classList.remove('oculto');
+  }
+
+  function renderRankingModal() {
+    let html = '';
+    html += '<table style="width:100%; border-collapse:collapse; text-align:left;">';
+    html += '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">';
+    html += '<th style="padding:12px 16px; width:50px;">#</th>';
+    html += `<th style="padding:12px 16px;">${rankingView.level === 'secciones' ? 'Sección / Área' : 'CECO / Lugar'}</th>`;
+    html += '<th style="padding:12px 16px; text-align:right; white-space: nowrap;">Consumo</th>';
+    html += '</tr></thead><tbody>';
+
+    const datos = rankingView.level === 'secciones' 
+      ? obtenerRankingSecciones() 
+      : obtenerRankingCecos(rankingView.seccionActiva);
+
+    if (datos.length === 0) {
+      html += '<tr><td colspan="3" style="padding:40px; text-align:center; color:#94a3b8;">No hay datos para el filtro actual</td></tr>';
+    } else {
+      datos.forEach((item, index) => {
+        const colorNum = index === 0 ? '#ef4444' : '#64748b';
+        const pesoNum = index === 0 ? 'bold' : 'normal';
+        html += `<tr class="fila-ranking" data-nombre="${item.nombre}" style="border-bottom:1px solid #f1f5f9; font-size:14px; cursor:pointer; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <td style="padding:14px 16px; font-weight:${pesoNum}; color:${colorNum};">${index + 1}</td>
+            <td style="padding:14px 16px; color:#0f172a; font-weight:500;">${item.nombre}</td>
+            <td style="padding:14px 16px; text-align:right; white-space: nowrap; color:${index === 0 ? '#ef4444' : '#8b5cf6'}; font-weight:600;">S/ ${item.gasto.toLocaleString('es-PE', {minimumFractionDigits: 2})}</td>
+        </tr>`;
+      });
+    }
+    html += '</tbody></table>';
+    $('ranking-contenido').innerHTML = html;
+    asignarEventosRanking();
+  }
+
+  function asignarEventosRanking() {
+    const filas = document.querySelectorAll('.fila-ranking');
+    filas.forEach(fila => {
+      const nombre = fila.getAttribute('data-nombre');
+
+      fila.addEventListener('click', function() {
+        if (rankingView.level === 'secciones') {
+          rankingView.level = 'cecos';
+          rankingView.seccionActiva = nombre;
+          renderRankingModal();
+        }
+      });
+
+      fila.addEventListener('dblclick', function() {
+        if (rankingView.level === 'secciones') {
+          if (CASCADA && CASCADA.combos.seccion) CASCADA.combos.seccion.setValue(nombre); 
+          if (CASCADA && CASCADA.combos.ceco) CASCADA.combos.ceco.setValue('');
+          if (CASCADA && CASCADA.combos.persona) CASCADA.combos.persona.setValue('');
+        } else {
+          if (CASCADA && CASCADA.combos.seccion) CASCADA.combos.seccion.setValue(rankingView.seccionActiva);
+          if (CASCADA && CASCADA.combos.ceco) CASCADA.combos.ceco.setValue(nombre);
+          if (CASCADA && CASCADA.combos.persona) CASCADA.combos.persona.setValue('');
+        }
+        
+        if (CASCADA) {
+          CASCADA.recalcular();
+        } else {
+          render();
+        }
+        
+        $('modal-ranking').classList.add('oculto');
+        rankingView = { level: 'secciones', seccionActiva: null };
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     $('b-cerrar').addEventListener('click', cerrarDetalle);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') cerrarDetalle();
+    
+    // --- EVENTOS DEL RANKING ---
+    $('btn-ranking-secciones').addEventListener('click', abrirModalRanking);
+    
+    $('b-cerrar-ranking').addEventListener('click', function() {
+      $('modal-ranking').classList.add('oculto');
+      rankingView = { level: 'secciones', seccionActiva: null };
     });
+
+    $('modal-ranking').addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.add('oculto');
+        rankingView = { level: 'secciones', seccionActiva: null };
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        const modal = $('modal-ranking');
+        if (modal && !modal.classList.contains('oculto')) {
+          if (rankingView.level === 'cecos') {
+            rankingView.level = 'secciones';
+            rankingView.seccionActiva = null;
+            renderRankingModal();
+          } else {
+            modal.classList.add('oculto');
+            rankingView = { level: 'secciones', seccionActiva: null };
+          }
+        } else {
+          cerrarDetalle(); // Cierra el panel lateral si no hay modal abierto
+        }
+      }
+    });
+    // ---------------------------
+
     init();
   });
 })();

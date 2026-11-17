@@ -241,7 +241,26 @@
 
     $('k-personas').textContent = lista.length;
     $('k-total').textContent = U.soles(granTotal);
-    $('k-prom').textContent = lista.length ? U.soles(granTotal / lista.length) : U.soles(0);
+        // --- Actualizar la tarjeta de Máx y Mín Consumo ---
+        // --- Actualizar la tarjeta de Máx y Mín Consumo ---
+    const rankingActual = obtenerRankingSecciones();
+    if (rankingActual.length > 0) {
+      const max = rankingActual[0];
+      const min = rankingActual[rankingActual.length - 1];
+      
+      $('k-rank-max-sec').textContent = max.nombre; // <-- Aquí era max.nombre
+      $('k-rank-max-sec').title = max.nombre;
+      $('k-rank-max-val').textContent = U.soles(max.gasto);
+      
+      $('k-rank-min-sec').textContent = min.nombre; // <-- Aquí era min.nombre
+      $('k-rank-min-sec').title = min.nombre;
+      $('k-rank-min-val').textContent = U.soles(min.gasto);
+    } else {
+      $('k-rank-max-sec').textContent = '—';
+      $('k-rank-max-val').textContent = '—';
+      $('k-rank-min-sec').textContent = '—';
+      $('k-rank-min-val').textContent = '—';
+    }
 
     $('th-row').innerHTML =
       '<th style="min-width:300px">Persona</th>' +
@@ -351,6 +370,196 @@
 
     return '<div class="detalle-in"><table class="det"><tbody>' + filas + '</tbody></table></div>';
   }
+   /* ---------------- LÓGICA DE RANKING (Navegación y Filtros) ---------------- */
+  
+  // Estado para saber en qué nivel estamos (secciones o cecos)
+  let rankingView = { level: 'secciones', seccionActiva: null };
 
+  function obtenerRankingSecciones() {
+    const meses = mesesVisibles();
+    const listaFiltrada = PERSONAS.filter(function (p) {
+      if (st.gerencia && p.gerencia !== st.gerencia) return false;
+      if (st.seccion && p.seccion !== st.seccion) return false;
+      if (st.ceco && p.ceco !== st.ceco) return false;
+      if (st.puesto && p.puesto !== st.puesto) return false;
+      if (st.meses.length > 0 || st.anio) {
+        const tieneConsumo = meses.some(m => (p.meses[m] || 0) > 0);
+        if (!tieneConsumo) return false;
+      }
+      return true;
+    });
+
+    const porSeccion = {};
+    listaFiltrada.forEach(p => {
+      const seccion = p.seccion || 'SIN ÁREA';
+      let gasto = 0;
+      if (st.meses.length > 0 || st.anio) {
+        gasto = meses.reduce((acc, m) => acc + (p.meses[m] || 0), 0);
+      } else {
+        gasto = p.total;
+      }
+      porSeccion[seccion] = (porSeccion[seccion] || 0) + gasto;
+    });
+
+    return Object.keys(porSeccion).map(sec => ({
+      nombre: sec,
+      gasto: porSeccion[sec]
+    })).sort((a, b) => b.gasto - a.gasto);
+  }
+
+  function obtenerRankingCecos(seccionFiltro) {
+    const meses = mesesVisibles();
+    const listaFiltrada = PERSONAS.filter(function (p) {
+      if (p.seccion !== seccionFiltro) return false; // Solo de la sección elegida
+      if (st.gerencia && p.gerencia !== st.gerencia) return false;
+      if (st.ceco && p.ceco !== st.ceco) return false;
+      if (st.puesto && p.puesto !== st.puesto) return false;
+      if (st.meses.length > 0 || st.anio) {
+        const tieneConsumo = meses.some(m => (p.meses[m] || 0) > 0);
+        if (!tieneConsumo) return false;
+      }
+      return true;
+    });
+
+    const porCeco = {};
+    listaFiltrada.forEach(p => {
+      const ceco = p.ceco || p.lugar || 'SIN CECO';
+      let gasto = 0;
+      if (st.meses.length > 0 || st.anio) {
+        gasto = meses.reduce((acc, m) => acc + (p.meses[m] || 0), 0);
+      } else {
+        gasto = p.total;
+      }
+      porCeco[ceco] = (porCeco[ceco] || 0) + gasto;
+    });
+
+    return Object.keys(porCeco).map(c => ({
+      nombre: c,
+      gasto: porCeco[c]
+    })).sort((a, b) => b.gasto - a.gasto);
+  }
+
+  function abrirModalRanking() {
+    rankingView = { level: 'secciones', seccionActiva: null }; // Reiniciar vista
+    renderRankingModal();
+    $('modal-ranking').classList.remove('oculto');
+  }
+
+       function renderRankingModal() {
+    let html = '';
+    
+    html += '<table style="width:100%; border-collapse:collapse; text-align:left;">';
+    html += '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">';
+    html += '<th style="padding:12px 16px; width:50px;">#</th>';
+    html += `<th style="padding:12px 16px;">${rankingView.level === 'secciones' ? 'Sección / Área' : 'CECO / Lugar'}</th>`;
+    // Agregado white-space: nowrap aquí
+    html += '<th style="padding:12px 16px; text-align:right; white-space: nowrap;">Consumo</th>';
+    html += '</tr></thead><tbody>';
+
+    const datos = rankingView.level === 'secciones' 
+      ? obtenerRankingSecciones() 
+      : obtenerRankingCecos(rankingView.seccionActiva);
+
+    if (datos.length === 0) {
+      html += '<tr><td colspan="3" style="padding:40px; text-align:center; color:#94a3b8;">No hay datos para el filtro actual</td></tr>';
+    } else {
+      datos.forEach((item, index) => {
+        const colorNum = index === 0 ? '#ef4444' : '#64748b';
+        const pesoNum = index === 0 ? 'bold' : 'normal';
+        
+        // Agregado white-space: nowrap en el td también
+        html += `<tr class="fila-ranking" data-nombre="${U.esc(item.nombre)}" style="border-bottom:1px solid #f1f5f9; font-size:14px; cursor:pointer; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <td style="padding:14px 16px; font-weight:${pesoNum}; color:${colorNum};">${index + 1}</td>
+            <td style="padding:14px 16px; color:#0f172a; font-weight:500;">${U.esc(item.nombre)}</td>
+            <td style="padding:14px 16px; text-align:right; white-space: nowrap; color:${index === 0 ? '#ef4444' : '#059669'}; font-weight:600;">${U.soles(item.gasto)}</td>
+        </tr>`;
+      });
+    }
+    html += '</tbody></table>';
+
+    $('ranking-contenido').innerHTML = html;
+    asignarEventosRanking();
+  }
+
+      function asignarEventosRanking() {
+    // Eventos de la tabla
+    const filas = document.querySelectorAll('.fila-ranking');
+    filas.forEach(fila => {
+      const nombre = fila.getAttribute('data-nombre');
+
+      // 1 CLIC: Navegar hacia adentro (solo si estamos en secciones)
+      fila.addEventListener('click', function() {
+        if (rankingView.level === 'secciones') {
+          rankingView.level = 'cecos';
+          rankingView.seccionActiva = nombre;
+          renderRankingModal();
+        }
+      });
+
+      // DOBLE CLIC: Autofiltrar la pantalla principal
+      fila.addEventListener('dblclick', function() {
+        if (rankingView.level === 'secciones') {
+          // Filtrar solo por sección
+          if (COMBOS && COMBOS.seccion) COMBOS.seccion.setValue(nombre); 
+          if (COMBOS && COMBOS.ceco) COMBOS.ceco.setValue('');
+          if (COMBOS && COMBOS.puesto) COMBOS.puesto.setValue('');
+        } else {
+          // Filtrar por sección Y ceco
+          if (COMBOS && COMBOS.seccion) COMBOS.seccion.setValue(rankingView.seccionActiva);
+          if (COMBOS && COMBOS.ceco) COMBOS.ceco.setValue(nombre);
+          if (COMBOS && COMBOS.puesto) COMBOS.puesto.setValue('');
+        }
+        
+        // Llamamos a recalcular para que actualice las opciones visuales
+        if (CASCADA) {
+          CASCADA.recalcular();
+        } else {
+          render();
+        }
+        
+        // Cerrar modal y limpiar vista
+        $('modal-ranking').classList.add('oculto');
+        rankingView = { level: 'secciones', seccionActiva: null };
+      });
+    });
+  }
+
+  // Escuchadores de eventos globales para el modal
+  document.addEventListener('DOMContentLoaded', function() {
+    $('btn-ranking-secciones').addEventListener('click', abrirModalRanking);
+    
+    $('b-cerrar-ranking').addEventListener('click', function() {
+      $('modal-ranking').classList.add('oculto');
+      rankingView = { level: 'secciones', seccionActiva: null }; // Reiniciar estado al cerrar
+    });
+
+    $('modal-ranking').addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.add('oculto');
+        rankingView = { level: 'secciones', seccionActiva: null };
+      }
+    });
+
+    // --- NUEVO: Lógica para la tecla Escape ---
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const modal = $('modal-ranking');
+        // Verificamos si el modal está abierto
+        if (modal && !modal.classList.contains('oculto')) {
+          if (rankingView.level === 'cecos') {
+            // Si estamos viendo CECOs, retrocedemos a Secciones
+            rankingView.level = 'secciones';
+            rankingView.seccionActiva = null;
+            renderRankingModal();
+          } else {
+            // Si estamos en Secciones, cerramos el modal
+            modal.classList.add('oculto');
+            rankingView = { level: 'secciones', seccionActiva: null };
+          }
+        }
+      }
+    });
+  });
+  
   document.addEventListener('DOMContentLoaded', init);
 })();
