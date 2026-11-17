@@ -36,7 +36,24 @@
   <div id="app" class="oculto">
     
     <!-- FILTROS -->
-    <section class="card filtros">
+      <section class="card filtros" style="position: relative;">
+              <!-- BARRA DE HERRAMIENTAS ARRIBA A LA DERECHA -->
+      <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; z-index: 10;">
+        
+        <button id="uf-btn-fullscreen" class="btn-exportar-verde" type="button" style="background:#fff; color:#0f172a; border-color:#cbd5e1; padding: 6px 12px; margin: 0;">
+          ⛶ Pantalla Completa
+        </button>
+
+        <button id="uf-b-limpiar" type="button" title="Limpiar filtros" 
+                style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; cursor: pointer; border-radius: 6px; padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" 
+                onmouseover="this.style.color='#ef4444'; this.style.borderColor='#fca5a5'; this.style.background='#fef2f2';" 
+                onmouseout="this.style.color='#64748b'; this.style.borderColor='#e2e8f0'; this.style.background='#f1f5f9';">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="width: 16px; height: 16px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+        </button>
+
+      </div>
       <div class="f-group">
         <label for="uf-gerencia">Gerencia</label>
         <div class="combo" id="uf-c-gerencia">
@@ -71,13 +88,6 @@
           <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
           <div class="combo-list oculto" role="listbox"></div>
         </div>
-      </div>
-
-      <div class="f-group" style="flex-direction: row; align-items: center; gap: 16px; margin-left: auto;">
-        <button id="uf-btn-fullscreen" class="btn-exportar-verde" type="button" style="background:#fff; color:#0f172a; border-color:#cbd5e1;">
-          ⛶ Pantalla Completa
-        </button>
-        <button id="uf-b-limpiar" class="btn-limpiar" type="button">Limpiar filtros</button>
       </div>
     </section>
 

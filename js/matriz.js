@@ -23,7 +23,6 @@
     ceco: '',
     puesto: '',
     fams: new Set(),
-    vacias: true,     // mostrar plazas sin ningún consumo
     orden: 'puesto'    // 'total' (mayor costo primero) | 'puesto' (alfabético)
   };
 
@@ -120,7 +119,6 @@
       }
     });
 
-    $('t-vacias').addEventListener('change', function () { st.vacias = this.checked; render(); });
     $('b-limpiar').addEventListener('click', limpiar);
 
     actualizarSelectores();
@@ -131,8 +129,6 @@
   }
 
   function limpiar() {
-    st.vacias = true;
-    $('t-vacias').checked = true;
     if (CASCADA) CASCADA.limpiar();
   }
 
@@ -184,7 +180,6 @@
       if (st.seccion && f.seccion !== st.seccion) return false;
       if (st.ceco && f.ceco !== st.ceco) return false;
       if (st.puesto && f.puesto !== st.puesto) return false;
-      if (!st.vacias && f.v.length === 0) return false;
       return true;
     });
   }
