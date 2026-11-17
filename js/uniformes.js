@@ -8,13 +8,18 @@
   let COLS = [], FILAS = [];
   let FILA_ACTUAL = null;
   let CASCADA = null;
+  let PERSONAS = [];
 
   const st = { gerencia: '', seccion: '', ceco: '', cargo: '' };
 
-  async function init() {
+    async function init() {
     try {
-      const r = await Promise.all([DatosUniformes.columnas(), DatosUniformes.matriz()]);
-      COLS = r[0]; FILAS = r[1];
+      const r = await Promise.all([
+        DatosUniformes.columnas(), 
+        DatosUniformes.matriz(),
+        DatosUniformes.consumo() // <-- Agregamos esta petición
+      ]);
+      COLS = r[0]; FILAS = r[1]; PERSONAS = r[2]; // <-- Asignamos el resultado
     } catch (e) {
       $('app').innerHTML = '<div class="card vacio">No se pudieron cargar los datos.<br><small>' + e.message + '</small></div>';
       return;
@@ -176,7 +181,15 @@
     FILA_ACTUAL = f;
     const d = $('drawer');
     $('d-titulo').textContent = f.p;
-    $('d-sub').textContent = f.v.length + ' prendas asignadas';
+        const personasFiltradas = PERSONAS.filter(p => {
+      return p.cargo === f.p && p.org.some(o => {
+        if (st.gerencia && o.gerencia !== st.gerencia) return false;
+        if (st.seccion && o.seccion !== st.seccion) return false;
+        if (st.ceco && o.lugar !== st.ceco) return false;
+        return true;
+      });
+    });
+    $('d-sub').textContent = personasFiltradas.length + ' persona(s) con este cargo';
 
     let html = '';
     let costoKit = 0;
