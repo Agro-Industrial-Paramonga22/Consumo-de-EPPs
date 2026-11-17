@@ -90,6 +90,60 @@ window.ETL = (function () {
     return idx;
   }
 
+  /* --- Nombres canónicos de gerencia -----------------------------------
+     El maestro histórico trae la misma gerencia con nombre largo y con
+     nombre corto. Si eso entra tal cual, el filtro muestra la gerencia
+     duplicada. Se unifican al nombre corto, que es el que ya usan las
+     secciones cargadas.                                              */
+  const GERENCIAS_CANON = {
+    'GERENCIA DE ADMINISTRACION Y FINANZAS': 'GERENCIA DE ADM Y FINANZAS',
+    'GERENCIA LEGAL Y RELACIONES LABORALES': 'GERENCIA LEGAL Y RELAC LABORAL',
+    'GERENCIA DE DESARROLLO ORGANIZACIONAL Y RESPONSABILIDAD SOCIAL EMPRESARIAL':
+      'GERENCIA DSRR ORGANIZ Y SOSTEN'
+  };
+
+  function gerenciaCanonica(g) {
+    const clave = String(g == null ? '' : g).trim().toUpperCase().replace(/\s+/g, ' ');
+    if (!clave) return 'Sin asignar';
+    return GERENCIAS_CANON[clave] || String(g).trim();
+  }
+
+  /* --- Sección de un centro de costo -----------------------------------
+     Un CECO puede tener gente de varias secciones (un practicante o un
+     alumno SENATI comparte el centro con la gente del área). Si se guarda
+     la última fila del Excel, el CECO entero se queda con la sección del
+     último que pasó.
+
+     1. Si el nombre del centro nombra a UNA sola de sus secciones, manda
+        esa ("GERENCIA GENERAL" -> GERENCIA GENERAL; ADMINISTRACION
+        FITOSANIDAD -> DPTO. DE FITOSANIDAD). Así el gerente general no
+        termina bajo administración porque comparta el centro con dos
+        personas de oficina.
+     2. Si el nombre no dice nada, manda la mayoría de personas.
+     3. Empate: la sección que más palabras comparta con el nombre del
+        centro; si sigue empatado, la primera por orden alfabético.       */
+  function seccionMayoritaria(cuenta, descripcion) {
+    const d = norm(descripcion);
+    const puntaje = s => norm(s).split(' ')
+      .filter(t => t.length >= 4 && d.indexOf(t) !== -1).length;
+
+    const secciones = Array.from(cuenta.keys());
+    const pts = new Map(secciones.map(s => [s, puntaje(s)]));
+    const top = Math.max.apply(null, Array.from(pts.values()));
+    const nombradas = secciones.filter(s => pts.get(s) === top);
+    if (top > 0 && nombradas.length === 1) return nombradas[0];
+
+    const pares = secciones
+      .map(s => [s, cuenta.get(s)])
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const max = pares[0][1];
+    const empatadas = pares.filter(p => p[1] === max).map(p => p[0]);
+    if (empatadas.length === 1) return empatadas[0];
+
+    empatadas.sort((a, b) => (pts.get(b) - pts.get(a)) || a.localeCompare(b));
+    return empatadas[0];
+  }
+
   async function construir(archivos) {
     const errores = [];
     const out = {}; 
@@ -102,6 +156,24 @@ window.ETL = (function () {
     const gerencias = new Set();
     const secciones = new Map();
     const centros = new Map();
+    const votosCeco = new Map();   // codigo -> { descripcion, cuenta: Map(seccion -> n) }
+
+    function votarCeco(cod, desc, sec) {
+      if (!cod) return;
+      let v = votosCeco.get(cod);
+      if (!v) { v = { descripcion: desc || '', cuenta: new Map() }; votosCeco.set(cod, v); }
+      if (!v.descripcion) v.descripcion = desc || '';
+      v.cuenta.set(sec, (v.cuenta.get(sec) || 0) + 1);
+    }
+
+    function volcarCecos() {
+      votosCeco.forEach(function (v, cod) {
+        centros.set(cod, {
+          descripcion: v.descripcion,
+          seccion: seccionMayoritaria(v.cuenta, v.descripcion)
+        });
+      });
+    }
     const descACodigo = new Map();
     const puestos = new Set();
     const personas = new Map();
@@ -127,9 +199,9 @@ window.ETL = (function () {
             personas.set(p.dni.replace(/^0+/, ''), {
               dni: p.dni, nombre: p.nombre, puesto: p.puesto, ceco: p.ceco, fuente: 'MAE'
             });
-            if (p.gerencia) gerencias.add(p.gerencia);
-            if (p.seccion) secciones.set(p.seccion, p.gerencia);
-            if (p.ceco) centros.set(p.ceco, { descripcion: p.ceco_desc, seccion: p.seccion });
+            if (p.gerencia) gerencias.add(gerenciaCanonica(p.gerencia));
+            if (p.seccion) secciones.set(p.seccion, gerenciaCanonica(p.gerencia));
+            if (p.ceco) votarCeco(p.ceco, p.ceco_desc, p.seccion);
             if (p.puesto) puestos.add(p.puesto);
           });
           if (data.length < 1000) hasMore = false;
@@ -138,6 +210,7 @@ window.ETL = (function () {
       } catch (e) {
         console.warn('No se pudo traer el MAE de Supabase. Se procesará sin validar DNI.', e);
       }
+      volcarCecos();
     }
 
     /* ---- MAE ---- */
@@ -164,15 +237,17 @@ window.ETL = (function () {
         const cod = texto(r[iCen]);
         if (cod && !/^\d+$/.test(cod)) return;
         const desc = texto(r[iCenDesc]) || '(sin centro de costo)';
-        gerencias.add(g);
-        if (!secciones.has(s)) secciones.set(s, g);
-        centros.set(cod, { descripcion: desc, seccion: s });
+        gerencias.add(gerenciaCanonica(g));
+        if (!secciones.has(s)) secciones.set(s, gerenciaCanonica(g));
+        votarCeco(cod, desc, s);
         if (!descACodigo.has(desc)) descACodigo.set(desc, cod);
         puestos.add(texto(r[iPue]));
         personas.set(dni.replace(/^0+/, ''), {
           dni: dni, nombre: texto(r[iNom]), puesto: texto(r[iPue]), ceco: cod, fuente: 'MAE'
         });
       });
+
+      volcarCecos();
     }
 
     /* ---- SERVICIOS ---- */

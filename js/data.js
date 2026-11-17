@@ -2,7 +2,7 @@
    CONTROL DE VERSIÓN AUTOMÁTICO
    ============================================================ */
 (function() {
-  const APP_VERSION = '1.0.2'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
+  const APP_VERSION = '1.0.4'; // <--- CAMBIA ESTE NÚMERO EN CADA ACTUALIZACIÓN
   
   const versionGuardada = localStorage.getItem('epp_app_version');
   
@@ -21,6 +21,7 @@ window.Datos = (function () {
   const CFG = window.EPP_CONFIG || {};
   const PAGE = 5000;
   const cache = new Map();
+  const cacheDetalle = new Map();
 
   function num(v) { return v == null || v === '' ? 0 : Number(v); }
 
@@ -45,6 +46,21 @@ window.Datos = (function () {
       if (page.length < PAGE) break;
     }
     return out;
+  }
+
+  async function rpc(fn, body) {
+    const r = await fetch(CFG.SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: CFG.SUPABASE_KEY,
+        Authorization: 'Bearer ' + CFG.SUPABASE_KEY
+      },
+      body: JSON.stringify(body || {})
+    });
+    if (!r.ok) throw new Error('Supabase ' + r.status + ': ' + (await r.text()).slice(0, 180));
+    return r.json();
   }
 
   function una(nombre, fn) {
@@ -79,7 +95,7 @@ window.Datos = (function () {
     /* Filas de la matriz: plaza + kit base + consumo adicional */
     matriz: async function () {
       const r = await Promise.all([
-        restAll('vw_costo_plaza?select=plaza_id,puesto,ceco_desc,personas,costo_kit,seccion'),
+        restAll('vw_costo_plaza?select=plaza_id,puesto,ceco_desc,personas,costo_kit,seccion,gerencia'),
         restAll('vw_consumo_plaza?select=plaza_id,personas'),
         restAll('vw_matriz_detalle?select=plaza_id,epp_id,cobertura_pct'),
         restAll('vw_matriz_adicional?select=plaza_id,material,cobertura_pct,motivo')
@@ -104,49 +120,58 @@ window.Datos = (function () {
           area: p.seccion || 'Sin Área',
           p: p.puesto, 
           l: p.ceco_desc || '(sin centro de costo)',
+          gerencia: p.gerencia || 'Sin asignar',
+          seccion: p.seccion || 'Sin Área',
+          ceco: p.ceco_desc || '(sin centro de costo)',
+          puesto: p.puesto,
           n: consumidores.get(p.plaza_id) || 0,
           v: v, t: num(p.costo_kit), a: a
         };
       }).sort(function (a, b) { return a.p.localeCompare(b.p) || a.l.localeCompare(b.l); });
     },
 
-    /* Consumo real por persona (pantalla 2) - SIN LOCALSTORAGE */
+    /* Consumo real por persona (pantalla 2)
+       El resumen viene ya agrupado desde Postgres: 1 fila por persona en vez
+       de las ~36.000 líneas (persona × mes × material). El detalle de una
+       persona se pide recién al abrir su fila. */
     consumo: function () {
       return una('consumo', async function () {
-        
-        // Descargar directamente de Supabase (sin caché manual)
-        const lineas = await restAll('vw_consumo_persona_agrupado?select=*');
-        const por = new Map();
-        
-        lineas.forEach(function (x) {
-          if (!por.has(x.dni)) {
-            por.set(x.dni, {
-              dni: x.dni, nombre: x.nombre, puesto: x.puesto || '', lugar: x.ceco_desc || '',
-              area: x.seccion || 'Sin Área',
-              total: 0, meses: {}, items: {}
-            });
-          }
-          const o = por.get(x.dni);
-          const mes = x.mes; 
-          const val = num(x.valor);
-          
-          o.total = Math.round((o.total + val) * 100) / 100;
-          o.meses[mes] = Math.round(((o.meses[mes] || 0) + val) * 100) / 100;
-          
-          const it = o.items[x.material] || (o.items[x.material] = { c: 0, v: 0, meses: {}, m: x.material });
-          it.c += num(x.cantidad);
-          it.v = Math.round((it.v + val) * 100) / 100;
-          it.meses[mes] = Math.round(((it.meses[mes] || 0) + val) * 100) / 100;
-        });
-
-        return Array.from(por.values()).map(function (o) {
-          o.items = Object.values(o.items).sort(function (a, b) { return b.v - a.v; })
-            .map(function (it) {
-              return { m: it.m, c: Math.round(it.c * 100) / 100, v: it.v, meses: it.meses };
-            });
-          return o;
+        const filas = await rpc('consumo_personas_resumen_json', {});
+        return (filas || []).map(function (x) {
+          return {
+            dni: x.dni,
+            nombre: x.nombre,
+            puesto: x.puesto || '',
+            lugar: x.ceco_desc || '',
+            area: x.seccion || 'Sin Área',
+            gerencia: x.gerencia || 'Sin asignar',
+            seccion: x.seccion || 'Sin Área',
+            ceco: x.ceco_desc || 'SIN CECO',
+            total: num(x.total),
+            meses: x.meses || {},
+            items: []
+          };
         });
       });
+    },
+
+    /* Detalle de una persona (se abre al hacer clic en su fila) */
+    consumoDetalle: function (dni) {
+      if (!cacheDetalle.has(dni)) {
+        cacheDetalle.set(dni, (async function () {
+          const filas = await restAll('vw_consumo_persona_detalle?select=material,mes,cantidad,valor&dni=eq.' + encodeURIComponent(dni));
+          const por = new Map();
+          filas.forEach(function (x) {
+            const it = por.get(x.material) || { m: x.material, c: 0, v: 0, meses: {} };
+            it.c = Math.round((it.c + num(x.cantidad)) * 100) / 100;
+            it.v = Math.round((it.v + num(x.valor)) * 100) / 100;
+            it.meses[x.mes] = Math.round(((it.meses[x.mes] || 0) + num(x.valor)) * 100) / 100;
+            por.set(x.material, it);
+          });
+          return Array.from(por.values()).sort(function (a, b) { return b.v - a.v; });
+        })());
+      }
+      return cacheDetalle.get(dni);
     },
 
     /* Escribir en Supabase (matriz_estandar) */

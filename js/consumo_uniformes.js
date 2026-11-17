@@ -1,13 +1,15 @@
 /* ============================================================
    Pantalla — CONSUMO DE UNIFORMES
+   Filtros en cascada: Gerencia -> Área/Sección -> Lugar (CECO) -> Trabajador
    ============================================================ */
 
 (function () {
   const $ = function (id) { return document.getElementById(id); };
   let PERSONAS = [];
-  let filtroTexto = '';
-  let filtroAnio = '';
+  let CASCADA = null;
   const porMaterial = new Map(); // Para guardar los nombres reales
+
+  const st = { gerencia: '', seccion: '', ceco: '', persona: '', anio: '' };
 
   async function init() {
     try {
@@ -33,41 +35,98 @@
     
     document.querySelector('.brand p').textContent = PERSONAS.length + ' personas con uniformes registrados';
 
-    // Filtros
-    $('f-buscar').addEventListener('input', function() {
-      filtroTexto = this.value.toLowerCase().trim();
-      render();
-    });
-
-    $('f-anio').addEventListener('change', function() {
-      filtroAnio = this.value;
-      render();
-    });
-
-    $('b-limpiar').addEventListener('click', function() {
-      $('f-buscar').value = '';
-      $('f-anio').value = '';
-      filtroTexto = '';
-      filtroAnio = '';
-      render();
-    });
-
+    pintarFiltros();
     render();
+  }
+
+  /* ---------------- Filtros en cascada ---------------- */
+
+  // Un registro por cada combinación trabajador + (gerencia, área, lugar).
+  function registros() {
+    const out = [];
+    PERSONAS.forEach(function (p) {
+      p.org.forEach(function (o) {
+        out.push({
+          gerencia: o.gerencia,
+          seccion: o.seccion,
+          ceco: o.lugar,
+          persona: p.nombre
+        });
+      });
+    });
+    return out;
+  }
+
+  function pintarFiltros() {
+    const campos = [
+      { key: 'gerencia', vacio: 'Todas las gerencias' },
+      { key: 'seccion',  vacio: 'Todas las áreas' },
+      { key: 'ceco',     vacio: 'Todos los lugares' },
+      { key: 'persona',  vacio: 'Todos los trabajadores' }
+    ];
+
+    const combos = {
+      gerencia: new Combo('c-gerencia', { vacio: 'Todas las gerencias' }),
+      seccion:  new Combo('c-seccion',  { vacio: 'Todas las áreas' }),
+      ceco:     new Combo('c-ceco',     { vacio: 'Todos los lugares' }),
+      persona:  new Combo('c-persona',  { vacio: 'Todos los trabajadores' })
+    };
+
+    CASCADA = new Cascada({
+      registros: registros(),
+      campos: campos,
+      combos: combos,
+      alCambiar: function () {
+        st.gerencia = combos.gerencia.value;
+        st.seccion  = combos.seccion.value;
+        st.ceco     = combos.ceco.value;
+        st.persona  = combos.persona.value;
+        render();
+      }
+    });
+
+    $('f-anio').addEventListener('change', function () {
+      st.anio = this.value;
+      render();
+    });
+
+    $('b-limpiar').addEventListener('click', function () {
+      $('f-anio').value = '';
+      st.anio = '';
+      if (CASCADA) CASCADA.limpiar();
+      else render();
+    });
+
+    CASCADA.recalcular();
+  }
+
+  function filasVisibles() {
+    return PERSONAS.filter(function (p) {
+      // Gerencia / área / lugar: basta con que una combinación del
+      // trabajador pase los tres filtros.
+      const pasaOrg = p.org.some(function (o) {
+        if (st.gerencia && o.gerencia !== st.gerencia) return false;
+        if (st.seccion && o.seccion !== st.seccion) return false;
+        if (st.ceco && o.lugar !== st.ceco) return false;
+        return true;
+      });
+      if (!pasaOrg) return false;
+
+      if (st.persona && p.nombre !== st.persona) return false;
+
+      // Regla del Año: si el registro es 2019 y el filtro 2025, debe aparecer.
+      if (st.anio) {
+        const anioRegistro = p.fecha_registro.split('-')[0];
+        if (parseInt(anioRegistro) > parseInt(st.anio)) return false;
+      }
+
+      return true;
+    });
   }
 
   function render() {
     // 1. Filtrar
-    const lista = PERSONAS.filter(p => {
-      if (filtroTexto && p.nombre.toLowerCase().indexOf(filtroTexto) === -1) return false;
-      
-      // Regla del Año: Si registro es 2019, y filtro es 2025, debe aparecer.
-      if (filtroAnio) {
-        const anioRegistro = p.fecha_registro.split('-')[0];
-        if (parseInt(anioRegistro) > parseInt(filtroAnio)) return false;
-      }
-      
-      return true;
-    });
+    const lista = filasVisibles();
 
     // 2. Calcular KPIs
     let granTotal = 0;

@@ -7,7 +7,9 @@
   let META = null, COLS = [], PERSONAS = [];
   const porMaterial = new Map();
 
-  const st = { area: '', puesto: '', lugar: '', anio: '', meses: [], buscarPersona: '' };
+  const st = { gerencia: '', seccion: '', ceco: '', puesto: '', anio: '', meses: [], buscarPersona: '' };
+
+  let CASCADA = null, COMBOS = null, FILTROS_LISTOS = false;
 
   const $ = function (id) { return document.getElementById(id); };
 
@@ -15,9 +17,7 @@
     $('app').classList.remove('oculto');
     $('cargando').classList.add('oculto');
 
-    if (!localStorage.getItem('epp_cache_consumo')) {
-      $('cuerpo').innerHTML = '<tr><td colspan="15" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Descargando datos históricos...</td></tr>';
-    }
+    $('cuerpo').innerHTML = '<tr><td colspan="15" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Cargando consumo…</td></tr>';
 
     try {
       const r = await Promise.all([Datos.meta(), Datos.columnas()]);
@@ -62,20 +62,33 @@
   }
 
   function pintarFiltros() {
-        // 1. Llenar el selector de Áreas (FILTRANDO BASURA)
-    const areas = Array.from(new Set(PERSONAS.map(function (p) { return p.area; })))
-      .filter(function (a) {
-        // Si el área es nula, vacía, o es puro número (ej. "600"), la ocultamos
-        if (!a || a === '(sin lugar de trabajo)') return false;
-        if (/^\d+$/.test(a.trim())) return false; 
-        return true;
-      })
-      .sort();
-      
-    $('f-area').innerHTML = '<option value="">Todas</option>' +
-      areas.map(function (a) {
-        return '<option value="' + U.esc(a) + '">' + U.esc(a) + '</option>';
-      }).join('');
+    // 1. Los cuatro filtros jerárquicos (gerencia -> sección -> CECO -> puesto)
+    if (!COMBOS) {
+      COMBOS = {
+        gerencia: new Combo('c-gerencia', { vacio: 'Todas las gerencias' }),
+        seccion:  new Combo('c-seccion',  { vacio: 'Todas las secciones' }),
+        ceco:     new Combo('c-ceco',     { vacio: 'Todos los lugares' }),
+        puesto:   new Combo('c-puesto',   { vacio: 'Todos los puestos' })
+      };
+
+      CASCADA = new Cascada({
+        registros: PERSONAS,
+        campos: [
+          { key: 'gerencia', vacio: 'Todas las gerencias' },
+          { key: 'seccion',  vacio: 'Todas las secciones' },
+          { key: 'ceco',     vacio: 'Todos los lugares' },
+          { key: 'puesto',   vacio: 'Todos los puestos' }
+        ],
+        combos: COMBOS,
+        alCambiar: function () {
+          st.gerencia = COMBOS.gerencia.value;
+          st.seccion  = COMBOS.seccion.value;
+          st.ceco     = COMBOS.ceco.value;
+          st.puesto   = COMBOS.puesto.value;
+          if (PERSONAS.length) render();   // todavía no llegaron los datos
+        }
+      });
+    }
 
     const anios = Array.from(new Set(META.meses.map(m => m.split('-')[0]))).sort().reverse();
     $('f-anio').innerHTML = '<option value="">Todos los años</option>' +
@@ -125,77 +138,59 @@
     $('ms-dropdown-meses').classList.add('oculto');
     llenarMeses();
 
-    $('ms-toggle-meses').addEventListener('click', function(e) {
-      e.stopPropagation();
-      $('ms-dropdown-meses').classList.toggle('oculto');
-    });
+    if (!FILTROS_LISTOS) {
+      FILTROS_LISTOS = true;
 
-    document.addEventListener('click', function(e) {
-      if (!$('ms-dropdown-meses').contains(e.target) && e.target !== $('ms-toggle-meses')) {
-        $('ms-dropdown-meses').classList.add('oculto');
-      }
-    });
+      $('ms-toggle-meses').addEventListener('click', function(e) {
+        e.stopPropagation();
+        $('ms-dropdown-meses').classList.toggle('oculto');
+      });
 
-    $('ms-dropdown-meses').addEventListener('change', function(e) {
-      if (e.target.type === 'checkbox') {
-        st.meses = Array.from(this.querySelectorAll('input:checked')).map(cb => cb.value);
+      document.addEventListener('click', function(e) {
+        if (!$('ms-dropdown-meses').contains(e.target) && e.target !== $('ms-toggle-meses')) {
+          $('ms-dropdown-meses').classList.add('oculto');
+        }
+      });
+
+      $('ms-dropdown-meses').addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox') {
+          st.meses = Array.from(this.querySelectorAll('input:checked')).map(cb => cb.value);
+          llenarMeses(); 
+          render();
+        }
+      });
+
+      $('f-anio').addEventListener('change', function() {
+        st.anio = this.value;
+        st.meses = []; 
         llenarMeses(); 
         render();
-      }
-    });
+      });
 
-    $('f-anio').addEventListener('change', function() {
-      st.anio = this.value;
-      st.meses = []; 
-      llenarMeses(); 
-      render();
-    });
+      $('f-buscar-persona').addEventListener('input', function () {
+        st.buscarPersona = this.value.toLowerCase().trim();
+        clearTimeout(window._tBuscar); 
+        window._tBuscar = setTimeout(render, 160);
+      });
 
-    function actualizarSelectoresDependientes() {
-      const baseArea = st.area ? PERSONAS.filter(p => p.area === st.area) : PERSONAS;
-      const puestos = Array.from(new Set(baseArea.map(function (p) { return p.puesto; }))).sort();
-      $('f-puesto').innerHTML = '<option value="">Todos los puestos</option>' +
-        puestos.map(function (p) {
-          return '<option value="' + U.esc(p) + '">' + U.esc(p) + '</option>';
-        }).join('');
-      $('f-puesto').value = st.puesto; 
-
-      const lugares = Array.from(new Set(baseArea.map(function (p) { return p.lugar; }))).sort();
-      $('f-lugar').innerHTML = '<option value="">Todos los lugares</option>' +
-        lugares.map(function (l) {
-          return '<option value="' + U.esc(l) + '">' + U.esc(l) + '</option>';
-        }).join('');
-      $('f-lugar').value = st.lugar; 
+      $('b-limpiar').addEventListener('click', function () {
+        st.buscarPersona = st.anio = '';
+        st.meses = [];
+        $('f-anio').value = '';
+        $('f-buscar-persona').value = ''; 
+        llenarMeses();
+        if (CASCADA) CASCADA.limpiar();
+        else render();
+      });
     }
 
     actualizarSelectoresDependientes();
+  }
 
-    $('f-area').addEventListener('change', function () { 
-      st.area = this.value; 
-      st.puesto = ''; $('f-puesto').value = '';
-      st.lugar = ''; $('f-lugar').value = '';
-      actualizarSelectoresDependientes(); 
-      render(); 
-    });
-
-    $('f-puesto').addEventListener('change', function () { st.puesto = this.value; render(); });
-    $('f-lugar').addEventListener('change', function () { st.lugar = this.value; render(); });
-    
-    $('f-buscar-persona').addEventListener('input', function () {
-      st.buscarPersona = this.value.toLowerCase().trim();
-      clearTimeout(window._tBuscar); 
-      window._tBuscar = setTimeout(render, 160);
-    });
-
-    $('b-limpiar').addEventListener('click', function () {
-      st.area = st.puesto = st.lugar = st.buscarPersona = st.anio = '';
-      st.meses = [];
-      $('f-area').value = ''; $('f-puesto').value = ''; $('f-lugar').value = ''; $('f-anio').value = '';
-      $('f-buscar-persona').value = ''; 
-      llenarMeses();
-      actualizarSelectoresDependientes();
-      render();
-    });
+  function actualizarSelectoresDependientes() {
+    if (!CASCADA) return;
+    CASCADA.registros = PERSONAS;   // la referencia cambia cuando termina la descarga
+    CASCADA.recalcular();
   }
 
   function mesesVisibles() {
@@ -219,9 +214,10 @@
     const meses = mesesVisibles();
 
     const lista = PERSONAS.filter(function (p) {
-      if (st.area && p.area !== st.area) return false;
+      if (st.gerencia && p.gerencia !== st.gerencia) return false;
+      if (st.seccion && p.seccion !== st.seccion) return false;
+      if (st.ceco && p.ceco !== st.ceco) return false;
       if (st.puesto && p.puesto !== st.puesto) return false;
-      if (st.lugar && p.lugar !== st.lugar) return false;
       if (st.buscarPersona && p.nombre.toLowerCase().indexOf(st.buscarPersona) === -1) return false;
       
       if (st.meses.length > 0 || st.anio) {
@@ -285,20 +281,36 @@
         '<td>' + U.soles(granTotal) + '</td>' +
       '</tr>';
 
-    $('cuerpo').onclick = function (e) {
+    $('cuerpo').onclick = async function (e) {
       const tr = e.target.closest('tr.fila');
       if (!tr) return;
       const i = +tr.dataset.i;
       const det = document.querySelector('tr[data-det="' + i + '"]');
-      const abierto = det.classList.contains('oculto');
-      if (abierto) {
-        det.querySelector('td').innerHTML = detalleHTML(lista[i], meses);
-        det.classList.remove('oculto');
-        tr.classList.add('abierta');
-      } else {
+      const persona = lista[i];
+      if (!det || !persona) return;
+
+      if (!det.classList.contains('oculto')) {
         det.classList.add('oculto');
         tr.classList.remove('abierta');
+        return;
       }
+
+      det.classList.remove('oculto');
+      tr.classList.add('abierta');
+
+      // El detalle (materiales por mes) se pide recién ahora, no en la carga inicial
+      if (!persona.items.length) {
+        det.querySelector('td').innerHTML = '<div class="detalle-in">Cargando detalle…</div>';
+        try {
+          persona.items = await Datos.consumoDetalle(persona.dni);
+        } catch (err) {
+          det.querySelector('td').innerHTML =
+            '<div class="detalle-in vacio">No se pudo cargar el detalle. ' + U.esc(err.message) + '</div>';
+          return;
+        }
+      }
+
+      det.querySelector('td').innerHTML = detalleHTML(persona, meses);
     };
   }
 

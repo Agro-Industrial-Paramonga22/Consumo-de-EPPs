@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Matriz de EPPs por puesto · Consumo de EPPs</title>
-<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/estilos.css?v=1.1.0">
 </head>
 <body>
 
@@ -38,16 +38,36 @@
 
     <section class="card filtros">
       <div class="f-group">
-        <label for="f-area">Área</label>
-        <select id="f-area"><option value="">Todas</option></select>
+        <label for="f-gerencia">Gerencia</label>
+        <div class="combo" id="c-gerencia">
+          <input type="text" id="f-gerencia" spellcheck="false" placeholder="Todas las gerencias">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
       </div>
       <div class="f-group">
-        <label for="f-lugar">Lugar de trabajo (CECO)</label>
-        <select id="f-lugar"><option value="">Todos</option></select>
+        <label for="f-seccion">Sección</label>
+        <div class="combo" id="c-seccion">
+          <input type="text" id="f-seccion" spellcheck="false" placeholder="Todas las secciones">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+      <div class="f-group">
+        <label for="f-ceco">Lugar de trabajo (CECO)</label>
+        <div class="combo" id="c-ceco">
+          <input type="text" id="f-ceco" spellcheck="false" placeholder="Todos los lugares">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
       </div>
       <div class="f-group">
         <label for="f-puesto">Puesto</label>
-        <select id="f-puesto"><option value="">Todos</option></select>
+        <div class="combo" id="c-puesto">
+          <input type="text" id="f-puesto" spellcheck="false" placeholder="Todos los puestos">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
       </div>
       
       <!-- BARRA DE HERRAMIENTAS (Alineada a la derecha) -->
@@ -136,7 +156,8 @@
 <script src="js/vendor/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data.js?v=1.0.5"></script>
+<script src="js/combo.js?v=1.1.0"></script>
 <script src="js/exportar.js"></script>
-<script src="js/matriz.js?v=1.0.5"></script>
+<script src="js/matriz.js?v=1.0.6"></script>
 </body>
 </html>

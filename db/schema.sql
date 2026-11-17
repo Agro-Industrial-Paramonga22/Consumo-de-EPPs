@@ -299,10 +299,11 @@ with (security_invoker = true) as
 select v.plaza_id, v.puesto, v.ceco, v.ceco_desc, v.seccion, v.personas,
        count(d.epp_id)                       as epp_count,
        coalesce(sum(d.subtotal_kit), 0)::numeric(12,2)   as costo_kit,
-       coalesce(sum(d.subtotal_anual), 0)::numeric(12,2) as costo_anual
+       coalesce(sum(d.subtotal_anual), 0)::numeric(12,2) as costo_anual,
+       v.gerencia
 from vw_plazas v
 left join vw_matriz_detalle d on d.plaza_id = v.plaza_id
-group by v.plaza_id, v.puesto, v.ceco, v.ceco_desc, v.seccion, v.personas;
+group by v.plaza_id, v.puesto, v.ceco, v.ceco_desc, v.seccion, v.personas, v.gerencia;
 
 -- Consumo real por persona
 create or replace view vw_consumo_persona
@@ -317,6 +318,37 @@ left join puestos pu   on pu.id = pe.puesto_id
 left join centros_costo cc on cc.codigo = coalesce(pe.ceco,'SIN-CECO')
 left join secciones s  on s.id = cc.seccion_id
 join vw_epp_precio ep  on ep.material = co.material;
+
+-- Consumo real agrupado por persona, mes y material (pantalla 2)
+-- Sin security_invoker, igual que la vista que está en producción: la web
+-- la lee con la clave publishable y la RLS se aplica en las tablas de base.
+create or replace view vw_consumo_persona_agrupado as
+select c.dni,
+       coalesce(p.nombre, 'DNI: '::text || c.dni::text)  as nombre,
+       coalesce(pu.nombre, 'SIN PUESTO'::text)           as puesto,
+       coalesce(cc.descripcion, 'SIN CECO'::text)        as ceco_desc,
+       coalesce(s.nombre, 'SIN ÁREA'::text)              as seccion,
+       to_char(c.fecha::timestamp with time zone, 'YYYY-MM'::text) as mes,
+       c.material,
+       sum(c.cantidad)                                   as cantidad,
+       sum(coalesce(pr.precio, 0::numeric) * c.cantidad) as valor,
+       p.ceco                                            as ceco,
+       coalesce(g.nombre, 'Sin asignar'::text)           as gerencia
+from consumo c
+left join personas p        on c.dni = p.dni
+left join puestos pu        on p.puesto_id = pu.id
+left join centros_costo cc  on p.ceco = cc.codigo
+left join secciones s       on cc.seccion_id = s.id
+left join gerencias g       on g.id = s.gerencia_id
+left join lateral (
+    select precios.precio from precios
+    where precios.material = c.material
+    order by precios.vigente_desde desc limit 1
+) pr on true
+where c.dni is not null and c.dni <> ''::bpchar
+group by c.dni, p.nombre, pu.nombre, cc.descripcion, s.nombre,
+         (to_char(c.fecha::timestamp with time zone, 'YYYY-MM'::text)),
+         c.material, p.ceco, g.nombre;
 
 -- Consumo real agregado por plaza
 create or replace view vw_consumo_plaza
@@ -387,3 +419,58 @@ end $$;
 
 grant usage on schema public to anon, authenticated;
 grant select on all tables in schema public to anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- 8. CONSUMO POR PERSONA — resumen agregado (pantalla 2)
+-- ---------------------------------------------------------------------
+--  La pantalla antes descargaba vw_consumo_persona_agrupado completa
+--  (~36.000 filas). Estas vistas entregan lo mismo pero ya agrupado:
+--  1 fila por persona y el detalle por persona bajo demanda.
+--  No cambian la atribución ni los precios: salen de la misma vista.
+
+create index if not exists ix_consumo_dni on public.consumo (dni);
+
+create or replace view public.vw_consumo_personas_resumen
+with (security_invoker = true) as
+with por_mes as (
+  select dni, mes,
+         sum(valor) as v,
+         max(nombre) as nombre, max(puesto) as puesto, max(ceco_desc) as ceco_desc,
+         max(seccion) as seccion, max(gerencia) as gerencia
+  from public.vw_consumo_persona_agrupado
+  group by dni, mes
+),
+con_total as (
+  select *, sum(v) over (partition by dni) as total from por_mes
+)
+select dni, nombre,
+       coalesce(puesto,'')              as puesto,
+       coalesce(ceco_desc,'')           as ceco_desc,
+       coalesce(seccion,'Sin Área')     as seccion,
+       coalesce(gerencia,'Sin asignar') as gerencia,
+       total,
+       jsonb_object_agg(mes, v)         as meses
+from con_total
+group by dni, nombre, puesto, ceco_desc, seccion, gerencia, total;
+
+create or replace view public.vw_consumo_persona_detalle
+with (security_invoker = true) as
+select dni, material, mes, sum(cantidad) as cantidad, sum(valor) as valor
+from public.vw_consumo_persona_agrupado
+group by dni, material, mes;
+
+-- Devuelve todo el resumen en una sola respuesta (evita el tope de 1000
+-- filas por petición de PostgREST).
+create or replace function public.consumo_personas_resumen_json()
+returns jsonb
+language sql
+stable
+security invoker
+as $$
+  select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
+  from public.vw_consumo_personas_resumen t;
+$$;
+
+grant select on public.vw_consumo_personas_resumen to anon, authenticated;
+grant select on public.vw_consumo_persona_detalle  to anon, authenticated;
+grant execute on function public.consumo_personas_resumen_json() to anon, authenticated;

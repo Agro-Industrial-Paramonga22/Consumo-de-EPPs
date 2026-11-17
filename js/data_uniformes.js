@@ -9,6 +9,10 @@ window.DatosUniformes = (function () {
 
   function num(v) { return v == null || v === '' ? 0 : Number(v); }
 
+  function norm(s) {
+    return String(s == null ? '' : s).trim().toUpperCase();
+  }
+
   async function rest(path) {
     const r = await fetch(CFG.SUPABASE_URL + '/rest/v1/' + path, {
       cache: 'no-store',
@@ -61,9 +65,10 @@ window.DatosUniformes = (function () {
       return una('uniformes_matriz', async function () {
         const r = await Promise.all([
           restAll('uniformes_cargos?select=*&order=nombre.asc'),
-          restAll('uniformes_matriz?select=cargo_id,material,requerido')
+          restAll('uniformes_matriz?select=cargo_id,material,requerido'),
+          restAll('vw_uniformes_cargos_org?select=cargo_id,gerencia,seccion,ceco,ceco_desc')
         ]);
-        
+
         const cargos = r[0];
         const relaciones = r[1];
 
@@ -75,11 +80,30 @@ window.DatosUniformes = (function () {
           }
         });
 
+        // Gerencia / área / lugar de cada cargo (vista derivada del maestro
+        // de personas: nombre del trabajador -> CECO -> sección -> gerencia).
+        const orgPorCargo = new Map();
+        r[2].forEach(function (o) {
+          if (!orgPorCargo.has(o.cargo_id)) orgPorCargo.set(o.cargo_id, []);
+          orgPorCargo.get(o.cargo_id).push({
+            gerencia: o.gerencia,
+            seccion: o.seccion,
+            ceco: o.ceco,
+            lugar: o.ceco_desc
+          });
+        });
+
         return cargos.map(function (c) {
           return {
             id: c.id,
             p: c.nombre,
-            v: matrizPorCargo.get(c.id) || []
+            v: matrizPorCargo.get(c.id) || [],
+            org: orgPorCargo.get(c.id) || [{
+              gerencia: 'Sin asignar',
+              seccion: 'Sin asignar',
+              ceco: 'SIN-ASIGNAR',
+              lugar: 'Sin lugar de trabajo'
+            }]
           };
         });
       });
@@ -120,20 +144,31 @@ window.DatosUniformes = (function () {
     // --------------------------------------------------------
     consumo: function () {
       return una('uniformes_consumo', async function () {
-        // Traemos todas las asignaciones registradas
-        const asignaciones = await restAll('uniformes_asignaciones?select=*');
+        // Traemos todas las asignaciones registradas + la jerarquía de cada
+        // trabajador (nombre -> CECO -> sección -> gerencia).
+        const r = await Promise.all([
+          restAll('uniformes_asignaciones?select=*'),
+          restAll('vw_uniformes_personas_org?select=persona,gerencia,seccion,ceco,ceco_desc')
+        ]);
+        const asignaciones = r[0];
         const porPersona = new Map();
+
+        const orgPorPersona = new Map();
+        r[1].forEach(function (o) { orgPorPersona.set(norm(o.persona), o); });
 
         asignaciones.forEach(function (a) {
           const key = a.nombre; // Usamos el nombre como identificador principal
-          
+
           if (!porPersona.has(key)) {
+            const o = orgPorPersona.get(norm(a.nombre));
             porPersona.set(key, {
               nombre: a.nombre,
               cargo: a.cargo,
               fecha_registro: a.fecha_registro,
               total: 0,
-              items: []
+              items: [],
+              org: o ? [{ gerencia: o.gerencia, seccion: o.seccion, ceco: o.ceco, lugar: o.ceco_desc }]
+                     : [{ gerencia: 'Sin asignar', seccion: 'Sin asignar', ceco: 'SIN-ASIGNAR', lugar: 'Sin lugar de trabajo' }]
             });
           }
           

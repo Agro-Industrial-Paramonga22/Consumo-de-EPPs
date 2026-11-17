@@ -18,13 +18,16 @@
   const minZoom = 0.5;  // Mínimo 50%
 
   const st = {
-    area: '', 
-    lugar: '',
+    gerencia: '',
+    seccion: '',
+    ceco: '',
     puesto: '',
     fams: new Set(),
     vacias: true,     // mostrar plazas sin ningún consumo
     orden: 'puesto'    // 'total' (mayor costo primero) | 'puesto' (alfabético)
   };
+
+  let CASCADA = null;
 
   const $ = function (id) { return document.getElementById(id); };
 
@@ -92,57 +95,47 @@
 
   /* ---------------- Filtros ---------------- */
   function pintarFiltros() {
-    $('f-area').addEventListener('change', function () { 
-      st.area = this.value; 
-      st.puesto = ''; $('f-puesto').value = ''; 
-      actualizarSelectores(); 
-      render(); 
+    const campos = [
+      { key: 'gerencia', vacio: 'Todas las gerencias' },
+      { key: 'seccion',  vacio: 'Todas las secciones' },
+      { key: 'ceco',     vacio: 'Todos los lugares' },
+      { key: 'puesto',   vacio: 'Todos los puestos' }
+    ];
+
+    const combos = {
+      gerencia: new Combo('c-gerencia', { vacio: 'Todas las gerencias' }),
+      seccion:  new Combo('c-seccion',  { vacio: 'Todas las secciones' }),
+      ceco:     new Combo('c-ceco',     { vacio: 'Todos los lugares' }),
+      puesto:   new Combo('c-puesto',   { vacio: 'Todos los puestos' })
+    };
+
+    CASCADA = new Cascada({
+      registros: FILAS,
+      campos: campos,
+      combos: combos,
+      alCambiar: function () {
+        st.gerencia = combos.gerencia.value;
+        st.seccion  = combos.seccion.value;
+        st.ceco     = combos.ceco.value;
+        st.puesto   = combos.puesto.value;
+        render();
+      }
     });
-    
-    $('f-lugar').addEventListener('change', function () { st.lugar = this.value; render(); });
-    $('f-puesto').addEventListener('change', function () { st.puesto = this.value; render(); });
+
     $('t-vacias').addEventListener('change', function () { st.vacias = this.checked; render(); });
     $('b-limpiar').addEventListener('click', limpiar);
-    
+
     actualizarSelectores();
   }
 
   function actualizarSelectores() {
-    const selArea = $('f-area');
-    if (selArea.options.length <= 1) {
-      const areas = Array.from(new Set(FILAS.map(f => f.area))).sort();
-      areas.forEach(a => {
-        const o = document.createElement('option'); o.value = a; o.textContent = a; selArea.appendChild(o);
-      });
-    }
-
-    const filasFiltradasPorArea = st.area ? FILAS.filter(f => f.area === st.area) : FILAS;
-
-    const selPuesto = $('f-puesto');
-    selPuesto.innerHTML = '<option value="">Todos</option>';
-    const puestos = Array.from(new Set(filasFiltradasPorArea.map(f => f.p))).sort();
-    puestos.forEach(p => {
-      const o = document.createElement('option'); o.value = p; o.textContent = p; selPuesto.appendChild(o);
-    });
-    selPuesto.value = st.puesto;
-
-    const selLugar = $('f-lugar');
-    selLugar.innerHTML = '<option value="">Todos</option>';
-    const lugares = Array.from(new Set(filasFiltradasPorArea.map(f => f.l))).sort();
-    lugares.forEach(l => {
-      const o = document.createElement('option'); o.value = l; o.textContent = l; selLugar.appendChild(o);
-    });
-    selLugar.value = st.lugar;
+    if (CASCADA) CASCADA.recalcular();
   }
 
   function limpiar() {
-    st.area = ''; st.lugar = ''; st.puesto = '';
     st.vacias = true;
-    $('f-area').value = ''; 
-    $('f-lugar').value = ''; $('f-puesto').value = '';
     $('t-vacias').checked = true;
-    actualizarSelectores();
-    render();
+    if (CASCADA) CASCADA.limpiar();
   }
 
   /* ---------------- cabecera de la tabla ---------------- */
@@ -189,9 +182,10 @@
   /* ---------------- cuerpo ---------------- */
   function filasVisibles() {
     return FILAS.filter(function (f) {
-      if (st.area && f.area !== st.area) return false;
-      if (st.lugar && f.l !== st.lugar) return false;
-      if (st.puesto && f.p !== st.puesto) return false;
+      if (st.gerencia && f.gerencia !== st.gerencia) return false;
+      if (st.seccion && f.seccion !== st.seccion) return false;
+      if (st.ceco && f.ceco !== st.ceco) return false;
+      if (st.puesto && f.puesto !== st.puesto) return false;
       if (!st.vacias && f.v.length === 0) return false;
       return true;
     });

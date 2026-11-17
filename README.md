@@ -86,6 +86,26 @@ consumo no se toca.
 gris con la etiqueta *sin consumo*. El detalle de cada fila lista el **consumo
 adicional** (lo que usan unos pocos y queda fuera de la matriz).
 
+### Filtros (Matriz y Consumo por persona)
+
+Las dos pantallas comparten los mismos cuatro filtros, **en cascada**:
+
+```
+Gerencia  →  Sección  →  Lugar de trabajo (CECO)  →  Puesto
+```
+
+- Cada desplegable **se puede escribir**: al tipear, la lista se achica a lo que
+  más se parece (ignora tildes y mayúsculas, busca en cualquier parte del texto y
+  acepta varias palabras en cualquier orden).
+- Los cuatro se recortan entre sí: al elegir un CECO, la gerencia y la sección se
+  autocompletan (no se bloquean), y el desplegable de Puesto pasa a ofrecer solo
+  los puestos que existen en ese CECO.
+- Si una selección deja de tener datos, se limpia sola; "Todas / Todos" (primera
+  opción) limpia ese nivel y sus hijos.
+- En Consumo por persona, los DNIs que no están en el maestro no tienen gerencia
+  y se agrupan bajo **"Sin asignar"** (hoy 500 personas). En la Matriz ese ítem
+  no existe: toda plaza tiene CECO y, por lo tanto, gerencia.
+
 ### Exportar
 
 El botón **Exportar matriz** descarga un `.xlsx` con la tabla tal como se ve: EPPs en

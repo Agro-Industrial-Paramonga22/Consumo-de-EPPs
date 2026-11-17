@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Consumo de Uniformes</title>
-<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/estilos.css?v=1.1.0">
 </head>
 <body>
 
@@ -37,11 +37,42 @@
   <div id="app" class="oculto">
     
     <section class="card filtros">
-      <div class="f-group" style="flex:1; max-width: 300px;">
-        <label for="f-buscar">Buscar Trabajador</label>
-        <input type="search" id="f-buscar" placeholder="Escribe el nombre...">
+      <div class="f-group">
+        <label for="f-gerencia">Gerencia</label>
+        <div class="combo" id="c-gerencia">
+          <input type="text" id="f-gerencia" spellcheck="false" placeholder="Todas las gerencias">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
       </div>
-      
+
+      <div class="f-group">
+        <label for="f-seccion">Área / Sección</label>
+        <div class="combo" id="c-seccion">
+          <input type="text" id="f-seccion" spellcheck="false" placeholder="Todas las áreas">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label for="f-ceco">Lugar de trabajo (CECO)</label>
+        <div class="combo" id="c-ceco">
+          <input type="text" id="f-ceco" spellcheck="false" placeholder="Todos los lugares">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label for="f-persona">Trabajador</label>
+        <div class="combo" id="c-persona">
+          <input type="text" id="f-persona" spellcheck="false" placeholder="Todos los trabajadores">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
       <div class="f-group">
         <label for="f-anio">Año</label>
         <select id="f-anio">
@@ -114,7 +145,8 @@
 </aside>
 
 <script src="js/config.js"></script>
-<script src="js/data_uniformes.js"></script>
-<script src="js/consumo_uniformes.js"></script>
+<script src="js/data_uniformes.js?v=1.2.0"></script>
+<script src="js/combo.js?v=1.1.0"></script>
+<script src="js/consumo_uniformes.js?v=1.1.0"></script>
 </body>
 </html>

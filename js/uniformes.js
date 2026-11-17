@@ -1,12 +1,15 @@
 /* ============================================================
    Pantalla — MATRIZ DE UNIFORMES
+   Filtros en cascada: Gerencia -> Área/Sección -> Lugar (CECO) -> Cargo
    ============================================================ */
 
 (function () {
   const $ = function (id) { return document.getElementById(id); };
   let COLS = [], FILAS = [];
   let FILA_ACTUAL = null;
-  let filtroCargo = '';
+  let CASCADA = null;
+
+  const st = { gerencia: '', seccion: '', ceco: '', cargo: '' };
 
   async function init() {
     try {
@@ -19,20 +22,12 @@
 
     $('app').classList.remove('oculto');
     $('cargando').classList.add('oculto');
-    
+
     $('uf-k-prendas').textContent = COLS.length;
+    document.querySelector('.brand p').textContent =
+      FILAS.length + ' cargos · ' + COLS.length + ' prendas en catálogo';
 
-    // Configurar filtro
-    $('uf-buscar').addEventListener('input', function() {
-      filtroCargo = this.value.toLowerCase().trim();
-      render();
-    });
-
-    $('uf-b-limpiar').addEventListener('click', function() {
-      $('uf-buscar').value = '';
-      filtroCargo = '';
-      render();
-    });
+    pintarFiltros();
 
     // Configurar pantalla completa
     $('uf-btn-fullscreen').addEventListener('click', function() {
@@ -48,8 +43,76 @@
     render();
   }
 
+  /* ---------------- Filtros en cascada ---------------- */
+
+  // Un registro por cada combinación cargo + (gerencia, área, lugar).
+  // Un mismo cargo puede aparecer en varias gerencias: la matriz lo muestra
+  // si cualquiera de sus combinaciones pasa el filtro.
+  function registros() {
+    const out = [];
+    FILAS.forEach(function (f) {
+      f.org.forEach(function (o) {
+        out.push({
+          gerencia: o.gerencia,
+          seccion: o.seccion,
+          ceco: o.lugar,
+          cargo: f.p,
+          id: f.id
+        });
+      });
+    });
+    return out;
+  }
+
+  function pintarFiltros() {
+    const campos = [
+      { key: 'gerencia', vacio: 'Todas las gerencias' },
+      { key: 'seccion',  vacio: 'Todas las áreas' },
+      { key: 'ceco',     vacio: 'Todos los lugares' },
+      { key: 'cargo',    vacio: 'Todos los cargos' }
+    ];
+
+    const combos = {
+      gerencia: new Combo('uf-c-gerencia', { vacio: 'Todas las gerencias' }),
+      seccion:  new Combo('uf-c-seccion',  { vacio: 'Todas las áreas' }),
+      ceco:     new Combo('uf-c-ceco',     { vacio: 'Todos los lugares' }),
+      cargo:    new Combo('uf-c-cargo',    { vacio: 'Todos los cargos' })
+    };
+
+    CASCADA = new Cascada({
+      registros: registros(),
+      campos: campos,
+      combos: combos,
+      alCambiar: function () {
+        st.gerencia = combos.gerencia.value;
+        st.seccion  = combos.seccion.value;
+        st.ceco     = combos.ceco.value;
+        st.cargo    = combos.cargo.value;
+        render();
+      }
+    });
+
+    $('uf-b-limpiar').addEventListener('click', function () {
+      if (CASCADA) CASCADA.limpiar();
+    });
+
+    CASCADA.recalcular();
+  }
+
+  function filasVisibles() {
+    return FILAS.filter(function (f) {
+      return f.org.some(function (o) {
+        if (st.gerencia && o.gerencia !== st.gerencia) return false;
+        if (st.seccion && o.seccion !== st.seccion) return false;
+        if (st.ceco && o.lugar !== st.ceco) return false;
+        if (st.cargo && f.p !== st.cargo) return false;
+        return true;
+      });
+    });
+  }
+
   function render() {
-    const lista = FILAS.filter(f => f.p.toLowerCase().includes(filtroCargo));
+    const lista = filasVisibles();
 
     // Actualizar KPIs
     let costoTotal = 0;
@@ -98,7 +161,7 @@
       );
     });
 
-    $('uf-matriz-body').innerHTML = partes.join('') || '<tr><td colspan="100" style="text-align:center;padding:40px;">No hay cargos registrados.</td></tr>';
+    $('uf-matriz-body').innerHTML = partes.join('') || '<tr><td colspan="100" style="text-align:center;padding:40px;">No hay cargos con esos filtros.</td></tr>';
     $('uf-contador').textContent = 'Mostrando ' + lista.length + ' de ' + FILAS.length + ' cargos';
 
     // 3. Evento click

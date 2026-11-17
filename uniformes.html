@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Matriz de Uniformes</title>
-<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/estilos.css?v=1.1.0">
 </head>
 <body>
 
@@ -37,11 +37,42 @@
     
     <!-- FILTROS -->
     <section class="card filtros">
-      <div class="f-group" style="flex:1; max-width: 300px;">
-        <label for="uf-buscar">Buscar Cargo</label>
-        <input type="search" id="uf-buscar" placeholder="Escribe el nombre del cargo...">
+      <div class="f-group">
+        <label for="uf-gerencia">Gerencia</label>
+        <div class="combo" id="uf-c-gerencia">
+          <input type="text" id="uf-gerencia" spellcheck="false" placeholder="Todas las gerencias">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
       </div>
-      
+
+      <div class="f-group">
+        <label for="uf-seccion">Área / Sección</label>
+        <div class="combo" id="uf-c-seccion">
+          <input type="text" id="uf-seccion" spellcheck="false" placeholder="Todas las áreas">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label for="uf-ceco">Lugar de trabajo (CECO)</label>
+        <div class="combo" id="uf-c-ceco">
+          <input type="text" id="uf-ceco" spellcheck="false" placeholder="Todos los lugares">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label for="uf-cargo">Cargo</label>
+        <div class="combo" id="uf-c-cargo">
+          <input type="text" id="uf-cargo" spellcheck="false" placeholder="Todos los cargos">
+          <button type="button" class="combo-btn" tabindex="-1" aria-label="Abrir lista">▼</button>
+          <div class="combo-list oculto" role="listbox"></div>
+        </div>
+      </div>
+
       <div class="f-group" style="flex-direction: row; align-items: center; gap: 16px; margin-left: auto;">
         <button id="uf-btn-fullscreen" class="btn-exportar-verde" type="button" style="background:#fff; color:#0f172a; border-color:#cbd5e1;">
           ⛶ Pantalla Completa
@@ -116,7 +147,8 @@
 </aside>
 
 <script src="js/config.js"></script>
-<script src="js/data_uniformes.js"></script>
-<script src="js/uniformes.js"></script>
+<script src="js/data_uniformes.js?v=1.2.0"></script>
+<script src="js/combo.js?v=1.1.0"></script>
+<script src="js/uniformes.js?v=1.1.0"></script>
 </body>
 </html>
